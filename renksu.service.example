@@ -1,0 +1,15 @@
+[Unit]
+Description=Renksu physical access control system
+After=network.target
+
+[Service]
+Type=simple
+User=hacklab
+Group=hacklab
+WorkingDirectory=/home/hacklab/renksu/
+ExecStart=/home/hacklab/renksu/run.sh
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
