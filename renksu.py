@@ -8,6 +8,7 @@ import door
 import modem
 import settings
 import speaker
+import telegram
 import utils
 
 log = logging.getLogger("renksu")
@@ -20,6 +21,7 @@ class Renksu:
             update_interval=settings.DATABASE_UPDATE_INTERVAL_SECONDS)
 
         self.speaker = speaker.Speaker()
+	self.telegram = telegram.Telegram()
 
         self.modem = modem.Modem(
             usb_id=settings.MODEM_USB_ID,
@@ -46,30 +48,32 @@ class Renksu:
         self.door.start()
         self.modem.start()
 
-    def ring_doorbell(self):
+    def ring_doorbell(self,number):
         self.speaker.play("doorbell")
+        self.telegram.message("Ovikelloa soitettu numerosta {}".format(number))
 
     async def ring_start(self, number):
         audit_log.info("Incoming call from %s", number)
 
         if number is None:
-            self.ring_doorbell()
+            self.ring_doorbell(number)
             audit_log.info("-> Unknown number!")
             return
 
         member = await self.db.get_member_info(number)
 
         if member is None:
-            self.ring_doorbell()
+            self.ring_doorbell(number)
             audit_log.info("-> Number not in database!")
             return
 
         if not member.is_active:
-            self.ring_doorbell()
+            self.ring_doorbell(number)
             audit_log.info("-> Not an active member!")
             return
 
         audit_log.info("Opening door for %s", member.display_name)
+	self.telegram.message("{} avasi oven.".format(member.display_name))
 
         self.last_unlocked_by = member
         self.door.unlock(settings.DOOR_PHONE_OPEN_TIME_SECONDS)
@@ -90,6 +94,7 @@ class Renksu:
                 audit_log.info("Door opened manually.")
         else:
             audit_log.info("Door closed.")
+            self.telegram.message("Ovi suljettu.")
 
 app = Renksu()
 app.start()
