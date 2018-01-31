@@ -25,11 +25,11 @@ class Speaker:
         except Exception as e:
             log.error("Failed to play audio", exc_info=e)
 
-    def say(self, text):
-        t = threading.Thread(target=self._say_thread, args=(text,))
+    def say(self, text, delay=0):
+        t = threading.Thread(target=self._say_thread, args=(text, delay))
         t.start()
 
-    def _say_thread(self, text):
+    def _say_thread(self, text, delay):
         try:
             fd, path = tempfile.mkstemp(".wav")
 
@@ -38,7 +38,7 @@ class Speaker:
                 stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                 close_fds=True)
 
-            time.sleep(5)
+            time.sleep(delay)
 
             subprocess.run(
                 ["aplay", path],

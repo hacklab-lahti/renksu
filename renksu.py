@@ -111,7 +111,7 @@ class Renksu:
                 audit_log.info("Door opened manually.")
 
             if self.say_after_open_text and (time.time() - self.say_after_open_time) < 30:
-                self.speaker.say(self.say_after_open_text)
+                self.speaker.say(self.say_after_open_text, delay=4)
                 self.say_after_open_text = None
         else:
             audit_log.info("Door closed.")
