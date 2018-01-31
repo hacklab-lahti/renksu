@@ -45,7 +45,6 @@ class Speaker:
                 stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                 close_fds=True)
         except Exception as e:
-            print(e)
             log.error("Failed to run TTS", exc_info=e)
         finally:
             if os.path.exists(path):

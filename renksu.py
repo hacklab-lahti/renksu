@@ -79,7 +79,7 @@ class Renksu:
         if days_left <= 0:
             if (settings.MEMBERSHIP_GRACE_PERIOD_DAYS
                     and -days_left < settings.MEMBERSHIP_GRACE_PERIOD_DAYS):
-                self.say_after_open("Membership expired. {} days of grace period remaining.".format(
+                self.say_after_open("Membership expired. Days of grace period remaining: {}".format(
                     settings.MEMBERSHIP_GRACE_PERIOD_DAYS + days_left))
             else:
                 self.ring_doorbell()
@@ -88,7 +88,7 @@ class Renksu:
         else:
             if (settings.MEMBERSHIP_REMAINING_MESSAGE_DAYS
                     and days_left <= settings.MEMBERSHIP_REMAINING_MESSAGE_DAYS):
-                self.say_after_open("{} days remaining.".format(days_left))
+                self.say_after_open("Days remaining: {}".format(days_left))
 
         audit_log.info("Opening door for %s", member.display_name)
 
@@ -111,7 +111,7 @@ class Renksu:
                 audit_log.info("Door opened manually.")
 
             if self.say_after_open_text and (time.time() - self.say_after_open_time) < 30:
-                self.speaker.say(self.say_after_open_text, delay=4)
+                self.speaker.say(self.say_after_open_text, delay=3)
                 self.say_after_open_text = None
         else:
             audit_log.info("Door closed.")
