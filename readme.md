@@ -17,7 +17,7 @@ Give the user permissions to the required devices and install required packages 
 
     # gpasswd -a user dialout
     # gpasswd -a user gpio
-    # apt-get install python3-venv python3-dev
+    # apt-get install python3-venv python3-dev alsa-utils libttspico0 libttspico-utils libttspico-data
 
 Create virtual environment and install pip packages
 

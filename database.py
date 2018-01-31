@@ -21,6 +21,8 @@ csv.register_dialect(
     skipinitialspace=True,
     lineterminator="\n")
 
+ONE_DAY = 60 * 60 * 24
+
 class MemberInfo:
     def __init__(self, id, name, phone_number, active_until):
         self.id = id
@@ -28,9 +30,8 @@ class MemberInfo:
         self.phone_number = phone_number
         self.active_until = active_until
 
-    @property
-    def is_active(self):
-        return self.active_until >= time.time()
+    def get_days_until_expiration(self):
+        return int(((self.active_until - time.time()) // ONE_DAY) + 1)
 
     @property
     def display_name(self):
@@ -114,7 +115,7 @@ class Database:
 
     async def get_member_info(self, number):
         member = self._find_member(number)
-        if member is not None and member.is_active:
+        if member is not None:
             return member
 
         # Maybe the member has just been added, try to update with low timeout

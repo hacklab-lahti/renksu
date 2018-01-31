@@ -8,6 +8,7 @@ import door
 import modem
 import settings
 import speaker
+import time
 import utils
 
 log = logging.getLogger("renksu")
@@ -39,6 +40,9 @@ class Renksu:
 
         self.last_unlocked_by = None
 
+        self.say_after_open_text = None
+        self.say_after_open_time = 0
+
     def start(self):
         log.info("Starting up")
 
@@ -48,6 +52,10 @@ class Renksu:
 
     def ring_doorbell(self):
         self.speaker.play("doorbell")
+
+    def say_after_open(self, text):
+        self.say_after_open_text = text
+        self.say_after_open_time = time.time()
 
     async def ring_start(self, number):
         audit_log.info("Incoming call from %s", number)
@@ -64,10 +72,23 @@ class Renksu:
             audit_log.info("-> Number not in database!")
             return
 
-        if not member.is_active:
-            self.ring_doorbell()
-            audit_log.info("-> Not an active member!")
-            return
+        days_left = member.get_days_until_expiration()
+
+        audit_log.info("Membership days left: {}".format(days_left))
+
+        if days_left <= 0:
+            if (settings.MEMBERSHIP_GRACE_PERIOD_DAYS
+                    and -days_left < settings.MEMBERSHIP_GRACE_PERIOD_DAYS):
+                self.say_after_open("Membership expired. {} days of grace period remaining.".format(
+                    settings.MEMBERSHIP_GRACE_PERIOD_DAYS + days_left))
+            else:
+                self.ring_doorbell()
+                audit_log.info("-> Not an active member!")
+                return
+        else:
+            if (settings.MEMBERSHIP_REMAINING_MESSAGE_DAYS
+                    and days_left <= settings.MEMBERSHIP_REMAINING_MESSAGE_DAYS):
+                self.say_after_open("{} days remaining.".format(days_left))
 
         audit_log.info("Opening door for %s", member.display_name)
 
@@ -88,6 +109,10 @@ class Renksu:
                     self.last_unlocked_by.display_name)
             else:
                 audit_log.info("Door opened manually.")
+
+            if self.say_after_open_text and (time.time() - self.say_after_open_time) < 30:
+                self.speaker.say(self.say_after_open_text)
+                self.say_after_open_text = None
         else:
             audit_log.info("Door closed.")
 
