@@ -38,6 +38,9 @@ class MemberInfo:
     def display_name(self):
         return "{} (#{})".format(self.name, self.id)
 
+    def get_public_name(self):
+        return (self.public_name if self.public_name else "Joku jäsen")
+
     def __eq__(self, other):
         return (self.id == other.id and self.name == other.name
             and self.phone_number == other.phone_number

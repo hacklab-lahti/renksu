@@ -92,9 +92,8 @@ class Renksu:
                 audit_log.info("-> Not an active member!")
                 self.ring_doorbell()
 
-                if member.public_name:
-                    self.telegram.message("\U000026D4 {} soitti ovikelloa, koska tilankäyttöoikeus ei ole voimassa."
-                        .format(member.public_name))
+                self.telegram.message("\U000026D4 {} soitti ovikelloa, koska tilankäyttöoikeus ei ole voimassa."
+                    .format(member.get_public_name()))
 
                 return
         else:
@@ -104,8 +103,7 @@ class Renksu:
 
         audit_log.info("Opening door for %s", member.display_name)
 
-        if member.public_name:
-            self.telegram.message("\U0001F6AA {} avasi oven.".format(member.public_name))
+        self.telegram.message("\U0001F6AA {} avasi oven.".format(member.get_public_name()))
 
         self.last_unlocked_by = member
         self.door.unlock(settings.DOOR_PHONE_OPEN_TIME_SECONDS)
@@ -124,6 +122,8 @@ class Renksu:
                     self.last_unlocked_by.display_name)
             else:
                 audit_log.info("Door opened manually.")
+
+                # TODO: Maybe send message
 
             if self.say_after_open_text and (time.time() - self.say_after_open_time) < 30:
                 self.speaker.say(self.say_after_open_text, delay=3)
