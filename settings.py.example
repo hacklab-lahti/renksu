@@ -30,9 +30,15 @@ DATABASE_ADDRESS = "/home/hacklab/members.csv"
 # How often to poll the database
 DATABASE_UPDATE_INTERVAL_SECONDS = 10
 
-
 # Audible message of membership about to expire if only this many days left (0 = disabled)
 MEMBERSHIP_REMAINING_MESSAGE_DAYS = 7
 
 # Let people in if their membership expired less than this many days ago (0 = disabled)
 MEMBERSHIP_GRACE_PERIOD_DAYS = 7
+
+
+# Telegram bot token
+TELEGRAM_BOT_TOKEN = "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
+
+# Telegram chat id where messages are send
+TELEGRAM_CHAT_ID = "-1234567890"

@@ -9,6 +9,7 @@ import modem
 import settings
 import speaker
 import time
+import telegram
 import utils
 
 log = logging.getLogger("renksu")
@@ -21,6 +22,7 @@ class Renksu:
             update_interval=settings.DATABASE_UPDATE_INTERVAL_SECONDS)
 
         self.speaker = speaker.Speaker()
+	self.telegram = telegram.Telegram()
 
         self.modem = modem.Modem(
             usb_id=settings.MODEM_USB_ID,
@@ -52,6 +54,7 @@ class Renksu:
 
     def ring_doorbell(self):
         self.speaker.play("doorbell")
+        self.telegram.message("\U0001F514 Joku soittaa ovikelloa!")
 
     def say_after_open(self, text):
         self.say_after_open_text = text
@@ -91,6 +94,7 @@ class Renksu:
                 self.say_after_open("Days remaining: {}".format(days_left))
 
         audit_log.info("Opening door for %s", member.display_name)
+	self.telegram.message("{} avasi oven.".format(member.display_name))
 
         self.last_unlocked_by = member
         self.door.unlock(settings.DOOR_PHONE_OPEN_TIME_SECONDS)
@@ -115,6 +119,7 @@ class Renksu:
                 self.say_after_open_text = None
         else:
             audit_log.info("Door closed.")
+            self.telegram.message("Ovi suljettu.")
 
 app = Renksu()
 app.start()
