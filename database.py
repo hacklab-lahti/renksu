@@ -24,11 +24,12 @@ csv.register_dialect(
 ONE_DAY = 60 * 60 * 24
 
 class MemberInfo:
-    def __init__(self, id, name, phone_number, active_until):
+    def __init__(self, id, name, phone_number, active_until, public_name):
         self.id = id
         self.name = name
         self.phone_number = phone_number
         self.active_until = active_until
+        self.public_name = public_name
 
     def get_days_until_expiration(self):
         return int(((self.active_until - time.time()) // ONE_DAY) + 1)
@@ -40,7 +41,8 @@ class MemberInfo:
     def __eq__(self, other):
         return (self.id == other.id and self.name == other.name
             and self.phone_number == other.phone_number
-            and self.active_until == other.active_until)
+            and self.active_until == other.active_until
+            and self.public_name == other.public_name)
 
 class Database:
     def __init__(self, address, update_interval):
@@ -78,7 +80,8 @@ class Database:
                         int(mdata["id"]),
                         str(mdata["name"]),
                         str(mdata["phone_number"]),
-                        int(time.mktime(time.strptime(mdata["active_until"], "%Y-%m-%d")))))
+                        int(time.mktime(time.strptime(mdata["active_until"], "%Y-%m-%d"))),
+                        mdata.get("public_name", None) or None))
 
             if new_members != self.members:
                 self.members = new_members
@@ -107,6 +110,7 @@ class Database:
                     "name": m.name,
                     "phone_number": m.phone_number,
                     "active_until": time.strftime("%Y-%m-%d", time.gmtime(m.active_until)),
+                    "public_name": m.public_name,
                 }, self.members)), indent=True))
 
             os.rename(temp_file_name, self.file_name)
