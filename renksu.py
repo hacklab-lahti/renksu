@@ -22,7 +22,10 @@ class Renksu:
             update_interval=settings.DATABASE_UPDATE_INTERVAL_SECONDS)
 
         self.speaker = speaker.Speaker()
-	self.telegram = telegram.Telegram()
+
+        self.telegram = telegram.Telegram(
+            bot_token=settings.TELEGRAM_BOT_TOKEN,
+            chat_id=settings.TELEGRAM_CHAT_ID)
 
         self.modem = modem.Modem(
             usb_id=settings.MODEM_USB_ID,
@@ -54,7 +57,6 @@ class Renksu:
 
     def ring_doorbell(self):
         self.speaker.play("doorbell")
-        self.telegram.message("\U0001F514 Joku soittaa ovikelloa!")
 
     def say_after_open(self, text):
         self.say_after_open_text = text
@@ -64,15 +66,17 @@ class Renksu:
         audit_log.info("Incoming call from %s", number)
 
         if number is None:
-            self.ring_doorbell()
             audit_log.info("-> Unknown number!")
+            self.ring_doorbell()
+            self.telegram.message("\U0001F514 Joku soitti ovikelloa piilotetusta numerosta.")
             return
 
         member = await self.db.get_member_info(number)
 
         if member is None:
-            self.ring_doorbell()
             audit_log.info("-> Number not in database!")
+            self.ring_doorbell()
+            self.telegram.message("\U0001F514 Joku soitti ovikelloa numerosta, joka ei ole jäsenrekisterissä.")
             return
 
         days_left = member.get_days_until_expiration()
@@ -85,8 +89,13 @@ class Renksu:
                 self.say_after_open("Membership expired. Days of grace period remaining: {}".format(
                     settings.MEMBERSHIP_GRACE_PERIOD_DAYS + days_left))
             else:
-                self.ring_doorbell()
                 audit_log.info("-> Not an active member!")
+                self.ring_doorbell()
+
+                if member.public_name:
+                    self.telegram.message("\U000026D4 {} soitti ovikelloa, koska tilankäyttöoikeus ei ole voimassa."
+                        .format(member.public_name))
+
                 return
         else:
             if (settings.MEMBERSHIP_REMAINING_MESSAGE_DAYS
@@ -94,7 +103,9 @@ class Renksu:
                 self.say_after_open("Days remaining: {}".format(days_left))
 
         audit_log.info("Opening door for %s", member.display_name)
-	self.telegram.message("{} avasi oven.".format(member.display_name))
+
+        if member.public_name:
+            self.telegram.message("\U0001F6AA {} avasi oven.".format(member.public_name))
 
         self.last_unlocked_by = member
         self.door.unlock(settings.DOOR_PHONE_OPEN_TIME_SECONDS)
@@ -119,7 +130,7 @@ class Renksu:
                 self.say_after_open_text = None
         else:
             audit_log.info("Door closed.")
-            self.telegram.message("Ovi suljettu.")
+            #self.telegram.message("Ovi suljettu.")
 
 app = Renksu()
 app.start()
