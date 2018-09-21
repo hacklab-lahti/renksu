@@ -86,7 +86,7 @@ class Database:
                 log.debug("Database updated. Saving to file.")
                 self._save_to_file()
         except Exception as e:
-            log.error("Failed to deserialize database CSV. Database was not updated.", exc_info=e)
+            log.error("Failed to deserialize database data. Database was not updated.", exc_info=e)
 
     def _load_from_file(self):
         try:
@@ -107,7 +107,7 @@ class Database:
                     "name": m.name,
                     "phone_number": m.phone_number,
                     "active_until": time.strftime("%Y-%m-%d", time.gmtime(m.active_until)),
-                }, self.members))))
+                }, self.members)), indent=True))
 
             os.rename(temp_file_name, self.file_name)
         except Exception as e:
