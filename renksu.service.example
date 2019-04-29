@@ -4,10 +4,10 @@ After=network.target
 
 [Service]
 Type=simple
-User=hacklab
-Group=hacklab
-WorkingDirectory=/home/hacklab/renksu/
-ExecStart=/home/hacklab/renksu/run.sh
+User=user
+Group=user
+WorkingDirectory=/home/user/renksu/
+ExecStart=/home/user/renksu/run.sh
 Restart=always
 RestartSec=10
 

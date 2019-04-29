@@ -15,15 +15,13 @@ Alternatively remove the console=serial0 entry from /boot/cmdline.txt.
 
 Give the user permissions to the required devices and install required packages (as root):
 
-    # gpasswd -a user dialout
-    # gpasswd -a user gpio
-    # apt-get install python3-venv python3-dev alsa-utils libttspico0 libttspico-utils libttspico-data
+    # usermod -G dialout,gpio -a user
+    # apt install python3-venv python3-dev alsa-utils libttspico0 libttspico-utils libttspico-data
 
 Create virtual environment and install pip packages
 
     $ python3 -m venv venv
-    $ source venv/bin/activate
-    $ pip install -r requirements.txt
+    $ venv/bin/pip install -r requirements.txt
 
 Create settings.py based on the example file, edit to taste and test:
 
@@ -31,7 +29,7 @@ Create settings.py based on the example file, edit to taste and test:
     $ your_favorite_editor settings.py
     $ ./run.sh
 
-Edit renksu.service.example to set correct path and install (as root):
+Edit renksu.service.example to set correct path and user and install (as root):
 
     # cp renksu.service.example /etc/systemd/system/renksu.service
     # systemctl enable renksu
