@@ -6,4 +6,5 @@ scratch.txt
 *.wav
 members.json
 settings.py
-
+mock.fifo
+members.csv

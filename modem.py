@@ -190,6 +190,49 @@ class Modem:
 
         return None
 
+class MockModem:
+    def __init__(self, mock, default_country_prefix):
+        self.mock = mock
+        self.default_country_prefix = default_country_prefix
+
+        self.on_rssi = None
+        self.ringing = False
+        self.incoming_number = None
+        self.on_ring_start = None
+        self.on_ring_end = None
+
+        self.mock.add_listener("r", self._ring)
+        self.mock.add_listener("h", self._ring_end)
+
+    def start(self):
+        self.mock.log("Modem started")
+
+    def hangup(self):
+        if self.ringing:
+            self.mock.log("Modem hanged up")
+
+    def _ring(self, number):
+        if number:
+            if number.startswith("0"):
+                number = self.default_country_prefix + number[1:]
+        else:
+            number = None
+
+        if not self.ringing or number != self.ringing_number:
+            self.ringing = True
+            self.ringing_number = number
+
+            utils.raise_event(self.on_ring_start, number)
+
+    def _ring_end(self):
+        if not self.ringing:
+            return
+
+        self.ringing = False
+        self.ringing_number = None
+
+        utils.raise_event(self.on_ring_end)
+
 if __name__ == "__main__":
     import logging.config
     logging.config.fileConfig("logging.ini")

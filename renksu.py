@@ -2,6 +2,7 @@ import logging, logging.config
 logging.config.fileConfig("logging.ini")
 
 import asyncio
+import sys
 
 import database
 import door
@@ -16,31 +17,41 @@ log = logging.getLogger("renksu")
 audit_log = logging.getLogger("audit")
 
 class Renksu:
-    def __init__(self):
+    def __init__(self, mock=None):
         self.db = database.Database(
             address=settings.DATABASE_ADDRESS,
             update_interval=settings.DATABASE_UPDATE_INTERVAL_SECONDS)
 
-        self.speaker = speaker.Speaker()
+        self.speaker = (
+            speaker.MockSpeaker(mock) if mock
+            else speaker.Speaker())
 
-        self.telegram = telegram.Telegram(
-            bot_token=settings.TELEGRAM_BOT_TOKEN,
-            chat_id=settings.TELEGRAM_CHAT_ID)
+        self.telegram = (
+            telegram.MockTelegram(mock) if mock
+            else telegram.Telegram(
+                bot_token=settings.TELEGRAM_BOT_TOKEN,
+                chat_id=settings.TELEGRAM_CHAT_ID))
 
-        self.modem = modem.Modem(
-            usb_id=settings.MODEM_USB_ID,
-            usb_config_interface=settings.MODEM_TTY_CONFIG_INTERFACE,
-            default_country_prefix=settings.MODEM_DEFAULT_COUNTRY_PREFIX,
-            mode_switch_usb_id=settings.MODEM_MODE_SWITCH_USB_ID,
-            mode_switch_curse=settings.MODEM_MODE_SWITCH_CURSE)
+        self.modem = (
+            modem.MockModem(
+                mock,
+                default_country_prefix=settings.MODEM_DEFAULT_COUNTRY_PREFIX) if mock
+            else modem.Modem(
+                usb_id=settings.MODEM_USB_ID,
+                usb_config_interface=settings.MODEM_TTY_CONFIG_INTERFACE,
+                default_country_prefix=settings.MODEM_DEFAULT_COUNTRY_PREFIX,
+                mode_switch_usb_id=settings.MODEM_MODE_SWITCH_USB_ID,
+                mode_switch_curse=settings.MODEM_MODE_SWITCH_CURSE))
 
         self.modem.on_ring_start = self.ring_start
         self.modem.on_ring_end = self.ring_end
         #self.modem.on_rssi = lambda rssi: log.debug("RSSI: %s", rssi)
 
-        self.door = door.Door(
-            lock_serial_device=settings.DOOR_LOCK_SERIAL_DEVICE,
-            switch_pin=settings.DOOR_SWITCH_PIN)
+        self.door = (
+            door.MockDoor(mock) if mock
+            else door.Door(
+                lock_serial_device=settings.DOOR_LOCK_SERIAL_DEVICE,
+                switch_pin=settings.DOOR_SWITCH_PIN))
         self.door.on_open_change = self.door_open_change
 
         self.last_unlocked_by = None
@@ -132,7 +143,8 @@ class Renksu:
             audit_log.info("Door closed.")
             #self.telegram.message("Ovi suljettu.")
 
-app = Renksu()
-app.start()
+if __name__ == "__main__":
+    app = Renksu()
+    app.start()
 
-utils.run_event_loop()
+    utils.run_event_loop()

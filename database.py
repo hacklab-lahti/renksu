@@ -95,6 +95,9 @@ class Database:
             log.error("Failed to deserialize database data. Database was not updated.", exc_info=e)
 
     def _load_from_file(self):
+        if not os.path.exists(self.file_name):
+            return
+
         try:
             with open(self.file_name, "r", encoding="utf-8") as f:
                 json_str = f.read()

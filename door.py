@@ -1,5 +1,4 @@
 import asyncio
-import RPi.GPIO as gpio
 import logging
 import mmap
 import os
@@ -14,6 +13,9 @@ log = logging.getLogger("door")
 
 class Door:
     def __init__(self, lock_serial_device, switch_pin):
+        import RPi.GPIO as gpio
+        self.gpio = gpio
+
         self.lock_serial_device = lock_serial_device
         self.switch_pin = switch_pin
 
@@ -29,18 +31,10 @@ class Door:
         self.unlocked_until = 0
 
     def start(self):
-        gpio.setmode(gpio.BOARD)
-        gpio.setup(self.switch_pin, gpio.IN, pull_up_down=gpio.PUD_UP)
+        self.gpio.setmode(self.gpio.BOARD)
+        self.gpio.setup(self.switch_pin, self.gpio.IN, pull_up_down=self.gpio.PUD_UP)
 
         utils.start_timer(self._poll, 0.5)
-
-    def _poll(self):
-        new_is_open = (gpio.input(self.switch_pin) == gpio.HIGH)
-
-        if new_is_open != self.is_open:
-            self.is_open = new_is_open
-
-            utils.raise_event(self.on_open_change, new_is_open)
 
     def unlock(self, seconds):
         try:
@@ -78,6 +72,14 @@ class Door:
         except Exception as e:
             log.error("Failed to unlock door", exc_info=e)
 
+    def _poll(self):
+        new_is_open = (self.gpio.input(self.switch_pin) == self.gpio.HIGH)
+
+        if new_is_open != self.is_open:
+            self.is_open = new_is_open
+
+            utils.raise_event(self.on_open_change, new_is_open)
+
     def _close_port(self):
         if self.port:
             asyncio.get_event_loop().remove_writer(self.port)
@@ -109,6 +111,50 @@ class Door:
                 pass
 
             self.port = None
+
+class MockDoor:
+    def __init__(self, mock):
+        self.mock = mock
+        self.is_open = None
+        self.on_open_change = None
+
+        self.is_unlocked = False
+
+        self.mock.add_listener("c", lambda: self._set_is_open(False))
+        self.mock.add_listener("o", lambda: self._set_is_open(True))
+
+    def start(self):
+        self.mock.log("Door started")
+
+    def unlock(self, seconds):
+        if seconds <= 0:
+            log.warning("Invalid unlock timeout: %ss", seconds)
+            return
+
+        if seconds >= 30:
+            log.error("Door unlock timeout too long: %ss", seconds)
+            return
+
+        if self.is_unlocked:
+            log.warning("Door already unlocked")
+            return
+
+        async def unlock_async():
+            self.mock.log("Door is unlocked")
+            self.is_unlocked = True
+
+            await asyncio.sleep(seconds)
+
+            self.mock.log("Door is locked")
+            self.is_unlocked = False
+
+        asyncio.ensure_future(unlock_async())
+
+    def _set_is_open(self, new_is_open):
+        if new_is_open != self.is_open:
+            self.is_open = new_is_open
+
+            utils.raise_event(self.on_open_change, new_is_open)
 
 if __name__ == "__main__":
     import logging.config

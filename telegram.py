@@ -25,3 +25,10 @@ class Telegram:
                     log.debug("Telegram message sent, response from server: {}".format(await resp.text()))
         except:
             log.error("Failed to send Telegram message", exc_info=e)
+
+class MockTelegram:
+    def __init__(self, mock):
+        self.mock = mock
+
+    def message(self, text):
+        self.mock.log("Sending to Telegram: {}".format(text))

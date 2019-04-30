@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os, os.path
 import subprocess
@@ -49,6 +50,21 @@ class Speaker:
         finally:
             if os.path.exists(path):
                 os.unlink(path)
+
+class MockSpeaker:
+    def __init__(self, mock):
+        self.mock = mock
+        self.mock.log("uwuwuwu  ")
+
+    def play(self, name):
+        self.mock.log("Playing sound: {}".format(name))
+
+    def say(self, text, delay=0):
+        async def say_async():
+            await asyncio.sleep(delay)
+            self.mock.log("Text-to-speech: {}".format(text))
+
+        asyncio.ensure_future(say_async())
 
 if __name__ == "__main__":
     speaker = Speaker()

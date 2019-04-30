@@ -1,2 +1,2 @@
 #!/bin/bash
-venv/bin/python3 renksu.py
+venv/bin/python3 renksu.py $@
