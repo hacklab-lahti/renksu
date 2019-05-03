@@ -119,7 +119,7 @@ class Renksu:
 
         audit_log.info("Opening door for %s", member.display_name)
 
-        self.telegram.message("\U0001F513 {} avasi oven.".format(member.get_public_name()))
+        self.telegram.message("\U0001F6AA {} avasi oven.".format(member.get_public_name()))
 
         self.last_unlocked_by = member
         self.door.unlock(settings.DOOR_PHONE_OPEN_TIME_SECONDS)
@@ -142,14 +142,11 @@ class Renksu:
                 if not self.mqtt.light_on:
                     self.telegram.message("\U0001F5DD Joku avasi oven manuaalisesti")
 
-                # TODO: Maybe send message
-
             if self.say_after_open_text and (time.time() - self.say_after_open_time) < 30:
                 self.speaker.say(self.say_after_open_text, delay=3)
                 self.say_after_open_text = None
         else:
             audit_log.info("Door closed.")
-            #self.telegram.message("Ovi suljettu.")
 
         self.mqtt.publish("door_open", "1" if is_open else "0", True)
 
@@ -157,6 +154,9 @@ class Renksu:
 
     def light_on_change(self, light_on):
         self.update_presence()
+
+        if light_on and not self.door.is_open:
+            self.telegram.message("\U0001F4A1 Valot laitettu päälle, labi ei ollutkaan tyhjillään")
 
     def update_presence(self):
         new_presence = self.mqtt.light_on or self.door.is_open
@@ -167,7 +167,7 @@ class Renksu:
             self.mqtt.publish("presence", "1" if self.presence else "0", True)
 
             if not self.presence:
-                self.telegram.message("\U0001F512 Labi tyhjillään")
+                self.telegram.message("\U0001F4A4 Labi tyhjillään")
 
 if __name__ == "__main__":
     app = Renksu()
