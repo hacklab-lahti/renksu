@@ -124,9 +124,11 @@ class Renksu:
         self.last_unlocked_by = member
         self.door.unlock(settings.DOOR_PHONE_OPEN_TIME_SECONDS)
 
-        self.modem.hangup()
-
         self.speaker.play("bleep")
+
+        await asyncio.sleep(2)
+
+        self.modem.hangup()
 
     def ring_end(self):
         log.info("Incoming call ended.")
