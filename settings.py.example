@@ -43,3 +43,25 @@ TELEGRAM_BOT_TOKEN = "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
 
 # Telegram chat id where messages are send
 TELEGRAM_CHAT_ID = "-1234567890"
+
+
+# MQTT server settings
+MQTT = {
+    # Server address
+    "HOST": "mqtt-server",
+
+    # Server port
+    "PORT": 5001,
+
+    # Username (None if authentication is not needed)
+    "USERNAME": "renksu",
+
+    # Password
+    "PASSWORD": "hunter2",
+
+    # Prefix for outgoing messages
+    "TOPIC_PREFIX": "renksu/",
+
+    # Topic and "on" value for light status input topic
+    "LIGHT_STATUS_TOPIC": ("something_else/light_status", "True"),
+}

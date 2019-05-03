@@ -7,6 +7,7 @@ import sys
 import database
 import door
 import modem
+import mqtt
 import settings
 import speaker
 import time
@@ -59,12 +60,18 @@ class Renksu:
         self.say_after_open_text = None
         self.say_after_open_time = 0
 
+        self.mqtt = mqtt.MqttClient(settings.MQTT)
+        self.mqtt.on_light_on_change = self.light_on_change
+
+        self.presence = None
+
     def start(self):
         log.info("Starting up")
 
         self.db.start()
         self.door.start()
         self.modem.start()
+        self.mqtt.start()
 
     def ring_doorbell(self):
         self.speaker.play("doorbell")
@@ -114,7 +121,7 @@ class Renksu:
 
         audit_log.info("Opening door for %s", member.display_name)
 
-        self.telegram.message("\U0001F6AA {} avasi oven.".format(member.get_public_name()))
+        self.telegram.message("\U0001F513 {} avasi oven.".format(member.get_public_name()))
 
         self.last_unlocked_by = member
         self.door.unlock(settings.DOOR_PHONE_OPEN_TIME_SECONDS)
@@ -134,6 +141,9 @@ class Renksu:
             else:
                 audit_log.info("Door opened manually.")
 
+                if not self.mqtt.light_on:
+                    self.telegram.message("\U0001F5DD Joku avasi oven manuaalisesti")
+
                 # TODO: Maybe send message
 
             if self.say_after_open_text and (time.time() - self.say_after_open_time) < 30:
@@ -142,6 +152,24 @@ class Renksu:
         else:
             audit_log.info("Door closed.")
             #self.telegram.message("Ovi suljettu.")
+
+        self.mqtt.publish("door_open", "1" if is_open else "0", True)
+
+        self.update_presence()
+
+    def light_on_change(self, light_on):
+        self.update_presence()
+
+    def update_presence(self):
+        new_presence = self.mqtt.light_on or self.door.is_open
+
+        if new_presence != self.presence:
+            self.presence = new_presence
+
+            self.mqtt.publish("presence", "1" if self.presence else "0")
+
+            if not self.presence:
+                self.telegram.message("\U0001F512 Labi tyhjillään")
 
 if __name__ == "__main__":
     app = Renksu()

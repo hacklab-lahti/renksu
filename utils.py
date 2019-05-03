@@ -14,6 +14,9 @@ def read_file_ignore_errors(path):
         return None
 
 def raise_event(handler, *args):
+    if not handler:
+        return
+
     try:
         res = handler(*args)
 
