@@ -50,10 +50,11 @@ if __name__ == "__main__":
 
         utils.run_event_loop()
     else:
-        os.unlink(FIFO_PATH)
+        if os.path.exists(FIFO_PATH):
+            os.unlink(FIFO_PATH)
         os.mkfifo(FIFO_PATH, 0o600)
         subprocess.call([
             "tmux",
-            "new-session", "venv/bin/python3 {} 1".format(sys.argv[0]), ";",
+            "new-session", "venv/bin/python3 {} 1 || cat > /dev/null".format(sys.argv[0]), ";",
             "split-window", "cat > {}".format(FIFO_PATH), ";",
             "resize-pane", "-t", "1", "-y", "2"])
