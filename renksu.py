@@ -3,6 +3,7 @@ logging.config.fileConfig("logging.ini")
 
 import asyncio
 import sys
+import time
 
 import database
 import door
@@ -10,7 +11,6 @@ import modem
 import mqtt
 import settings
 import speaker
-import time
 import telegram
 import utils
 
@@ -29,9 +29,7 @@ class Renksu:
 
         self.telegram = (
             telegram.MockTelegram(mock) if mock
-            else telegram.Telegram(
-                bot_token=settings.TELEGRAM_BOT_TOKEN,
-                chat_id=settings.TELEGRAM_CHAT_ID))
+            else telegram.Telegram(settings.TELEGRAM))
 
         self.modem = (
             modem.MockModem(
@@ -68,10 +66,10 @@ class Renksu:
     def start(self):
         log.info("Starting up")
 
+        self.mqtt.start()
         self.db.start()
         self.door.start()
         self.modem.start()
-        self.mqtt.start()
 
     def ring_doorbell(self):
         self.speaker.play("doorbell")
@@ -166,7 +164,7 @@ class Renksu:
         if new_presence != self.presence:
             self.presence = new_presence
 
-            self.mqtt.publish("presence", "1" if self.presence else "0")
+            self.mqtt.publish("presence", "1" if self.presence else "0", True)
 
             if not self.presence:
                 self.telegram.message("\U0001F512 Labi tyhjillään")

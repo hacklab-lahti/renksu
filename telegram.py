@@ -1,24 +1,28 @@
 import asyncio
 import aiohttp
-import urllib
 import logging
-import settings
+import urllib
+import time
 
 log = logging.getLogger("telegram")
 
 class Telegram:
-    def __init__(self, bot_token, chat_id):
-        self.bot_token = bot_token
-        self.chat_id = chat_id
+    def __init__(self, settings):
+        self.settings = settings
+        self.started = time.time()
 
     def message(self, text):
         asyncio.ensure_future(self._message(text))
 
     async def _message(self, text):
+        if time.time() - self.started < 10:
+            log.info("Ignoring Telegram message (just started): {}".format(text))
+            return
+
         try:
             text = urllib.parse.quote(text)
             url = ("https://api.telegram.org/bot{}/sendMessage?chat_id={}&text={}&disable_notification={}"
-                .format(self.bot_token, self.chat_id, text, "true"))
+                .format(self.settings["BOT_TOKEN"], self.settings["CHAT_ID"], text, "true"))
 
             async with aiohttp.ClientSession() as session:
                 async with session.get(url, timeout=10) as resp:

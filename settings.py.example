@@ -38,11 +38,14 @@ MEMBERSHIP_REMAINING_MESSAGE_DAYS = 7
 MEMBERSHIP_GRACE_PERIOD_DAYS = 7
 
 
-# Telegram bot token
-TELEGRAM_BOT_TOKEN = "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
+# Telegram client settings
+TELEGRAM = {
+    # Bot token
+    "BOT_TOKEN": "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11",
 
-# Telegram chat id where messages are send
-TELEGRAM_CHAT_ID = "-1234567890"
+    # Chat ID ("-1234567890") or supergroup username ("@groupname")
+    "CHAT_ID": "-1234567890",
+}
 
 
 # MQTT server settings
