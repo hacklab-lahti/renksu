@@ -25,6 +25,7 @@ class MqttClient:
 
     def start(self):
         self.client = mqtt.Client()
+        self.client.will_set(self.settings["TOPIC_PREFIX"] + "online", "0", 2, True)
         self.client.connect_async(self.settings["HOST"], self.settings["PORT"], 60)
         if self.settings["USERNAME"]:
             self.client.username_pw_set(self.settings["USERNAME"], self.settings["PASSWORD"])
@@ -45,6 +46,8 @@ class MqttClient:
 
         if self.settings["LIGHT_STATUS_TOPIC"]:
             self.client.subscribe(self.settings["LIGHT_STATUS_TOPIC"][0])
+
+        self.publish("online", "1", True)
 
     @threadsafe
     async def _on_message(self, client, userdata, msg):
