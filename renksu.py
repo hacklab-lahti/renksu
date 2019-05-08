@@ -177,9 +177,11 @@ class Renksu:
                 self.mqtt.publish("presence", "1" if self.presence else "0", True)
 
                 if not self.presence:
+                    self.presence_members.clear()
                     self.telegram.message("\U0001F4A4 Labi tyhjillään")
 
-            self.presence_timer = utils.Timer(set_presence, 0 if self.presence is None or new_presence else 10, False)
+            delay = 0 if self.presence is None or new_presence else settings.PRESENCE_LEAVE_DELAY_SECONDS
+            self.presence_timer = utils.Timer(set_presence, delay)
 
 if __name__ == "__main__":
     app = Renksu()

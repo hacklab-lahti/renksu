@@ -68,3 +68,7 @@ MQTT = {
     # Topic and "on" value for light status input topic
     "LIGHT_STATUS_TOPIC": ("something_else/light_status", "True"),
 }
+
+
+# Delay after considering space empty after lights are off and door closed
+PRESENCE_LEAVE_DELAY_SECONDS = 60
