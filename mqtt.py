@@ -35,6 +35,8 @@ class MqttClient:
         self.client.loop_start()
 
     def publish(self, topic, payload, retain=False):
+        log.debug("send: {} {}{}".format(topic, payload, " (retain)" if retain else ""))
+
         try:
             self.client.publish(self.settings["TOPIC_PREFIX"] + topic, payload, 2, retain)
         except Exception as e:

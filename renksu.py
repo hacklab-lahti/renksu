@@ -61,6 +61,8 @@ class Renksu:
         self.mqtt = mqtt.MqttClient(settings.MQTT)
         self.mqtt.on_light_on_change = self.light_on_change
 
+        self.presence_timer = None
+        self.presence_members = set()
         self.presence = None
 
     def start(self):
@@ -119,7 +121,9 @@ class Renksu:
 
         audit_log.info("Opening door for %s", member.display_name)
 
-        self.telegram.message("\U0001F6AA {} avasi oven.".format(member.get_public_name()))
+        if not member.id in self.presence_members:
+            self.presence_members.add(member.id)
+            self.telegram.message("\U0001F6AA {} avasi oven.".format(member.get_public_name()))
 
         self.last_unlocked_by = member
         self.door.unlock(settings.DOOR_PHONE_OPEN_TIME_SECONDS)
@@ -141,7 +145,7 @@ class Renksu:
             else:
                 audit_log.info("Door opened manually.")
 
-                if not self.mqtt.light_on:
+                if not self.presence:
                     self.telegram.message("\U0001F5DD Joku avasi oven manuaalisesti")
 
             if self.say_after_open_text and (time.time() - self.say_after_open_time) < 30:
@@ -155,21 +159,27 @@ class Renksu:
         self.update_presence()
 
     def light_on_change(self, light_on):
-        self.update_presence()
+        if light_on and not self.presence:
+            self.telegram.message("\U0001F4A1 Valot päällä, labi ei olekaan tyhjillään")
 
-        if light_on and not self.door.is_open:
-            self.telegram.message("\U0001F4A1 Valot laitettu päälle, labi ei ollutkaan tyhjillään")
+        self.update_presence()
 
     def update_presence(self):
         new_presence = self.mqtt.light_on or self.door.is_open
 
+        if self.presence_timer:
+            self.presence_timer.cancel()
+
         if new_presence != self.presence:
-            self.presence = new_presence
+            def set_presence():
+                self.presence = new_presence
 
-            self.mqtt.publish("presence", "1" if self.presence else "0", True)
+                self.mqtt.publish("presence", "1" if self.presence else "0", True)
 
-            if not self.presence:
-                self.telegram.message("\U0001F4A4 Labi tyhjillään")
+                if not self.presence:
+                    self.telegram.message("\U0001F4A4 Labi tyhjillään")
+
+            self.presence_timer = utils.Timer(set_presence, 0 if self.presence is None or new_presence else 10, False)
 
 if __name__ == "__main__":
     app = Renksu()

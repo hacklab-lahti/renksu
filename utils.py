@@ -2,7 +2,7 @@ import asyncio
 import inspect
 import logging
 
-__all__ = ["read_file_ignore_errors", "start_timer"]
+__all__ = ["read_file_ignore_errors", "raise_event", "run_event_loop", "Timer"]
 
 log = logging.getLogger("utils")
 
@@ -49,9 +49,11 @@ def run_event_loop(debug=False):
     finally:
         loop.close()
 
-def start_timer(func, interval):
-    async def timer_coro():
-        while True:
+class Timer:
+    def __init__(self, func, interval, repeat=False):
+        self.cancelled = False
+
+        async def call_func():
             try:
                 res = func()
 
@@ -60,6 +62,19 @@ def start_timer(func, interval):
             except Exception as e:
                 log.error("Exception in timer function", exc_info=e)
 
+        async def repeat_coro():
+            while not self.cancelled:
+                await call_func()
+
+                await asyncio.sleep(interval)
+
+        async def single_coro():
             await asyncio.sleep(interval)
 
-    asyncio.ensure_future(timer_coro())
+            if not self.cancelled:
+                await call_func()
+
+        asyncio.ensure_future(repeat_coro() if repeat else single_coro())
+
+    def cancel(self):
+        self.cancelled = True

@@ -60,7 +60,7 @@ class Database:
 
         self._load_from_file()
 
-        utils.start_timer(self._update, self.update_interval)
+        utils.Timer(self._update, self.update_interval, True)
 
     async def _update(self, timeout=10):
         if "://" in self.address:

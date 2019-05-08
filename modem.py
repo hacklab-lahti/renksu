@@ -36,7 +36,7 @@ class Modem:
         self.prev_ring_time = 0
 
     def start(self):
-        utils.start_timer(self._poll, 1)
+        utils.Timer(self._poll, 1, True)
 
     def hangup(self):
         if self.ringing:

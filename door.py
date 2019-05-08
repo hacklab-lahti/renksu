@@ -35,7 +35,7 @@ class Door:
         self.gpio.setup(self.switch_pin, self.gpio.IN, pull_up_down=self.gpio.PUD_UP)
 
         self._poll()
-        utils.start_timer(self._poll, 0.5)
+        utils.Timer(self._poll, 0.5, True)
 
     def unlock(self, seconds):
         try:

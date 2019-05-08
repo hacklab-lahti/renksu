@@ -54,7 +54,6 @@ class Speaker:
 class MockSpeaker:
     def __init__(self, mock):
         self.mock = mock
-        self.mock.log("uwuwuwu  ")
 
     def play(self, name):
         self.mock.log("Playing sound: {}".format(name))
