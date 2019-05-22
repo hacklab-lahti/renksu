@@ -70,5 +70,11 @@ MQTT = {
 }
 
 
-# Delay after considering space empty after lights are off and door closed
-PRESENCE_LEAVE_DELAY_SECONDS = 60
+# Settings for presence tracking
+PRESENCE = {
+    # Delay before considering space empty after lights are off and door closed
+    "LEAVE_DELAY_SECONDS": 60,
+
+    # Presence timeout for re-sending the "Door opened by" messages
+    "PRESENCE_TIMEOUT_SECONDS": 8 * 60 * 60,
+}

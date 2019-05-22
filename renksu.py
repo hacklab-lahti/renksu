@@ -62,7 +62,7 @@ class Renksu:
         self.mqtt.on_light_on_change = self.light_on_change
 
         self.presence_timer = None
-        self.presence_members = set()
+        self.presence_members = {}
         self.presence = None
 
     def start(self):
@@ -81,6 +81,8 @@ class Renksu:
         self.say_after_open_time = time.time()
 
     async def ring_start(self, number):
+        now = time.time()
+
         audit_log.info("Incoming call from %s", number)
 
         if number is None:
@@ -121,8 +123,9 @@ class Renksu:
 
         audit_log.info("Opening door for %s", member.display_name)
 
-        if not member.id in self.presence_members:
-            self.presence_members.add(member.id)
+        last_presence = self.presence_members.get(member.id, 0)
+        if now - last_presence >= settings.PRESENCE["PRESENCE_TIMEOUT_SECONDS"]:
+            self.presence_members[member.id] = now
             self.telegram.message("\U0001F6AA {} avasi oven.".format(member.get_public_name()))
 
         self.last_unlocked_by = member
@@ -180,7 +183,7 @@ class Renksu:
                     self.presence_members.clear()
                     self.telegram.message("\U0001F4A4 Labi tyhjillään")
 
-            delay = 0 if self.presence is None or new_presence else settings.PRESENCE_LEAVE_DELAY_SECONDS
+            delay = 0 if self.presence is None or new_presence else settings.PRESENCE["LEAVE_DELAY_SECONDS"]
             self.presence_timer = utils.Timer(set_presence, delay)
 
 if __name__ == "__main__":
