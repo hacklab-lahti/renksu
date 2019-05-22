@@ -49,11 +49,12 @@ class Renksu:
         self.door = (
             door.MockDoor(mock) if mock
             else door.Door(
-                lock_serial_device=settings.DOOR_LOCK_SERIAL_DEVICE,
-                switch_pin=settings.DOOR_SWITCH_PIN))
+                lock_serial_device=settings.DOOR["LOCK_SERIAL_DEVICE"],
+                switch_pin=settings.DOOR["SWITCH_PIN"]))
         self.door.on_open_change = self.door_open_change
 
         self.last_unlocked_by = None
+        self.last_opened_at = None
 
         self.say_after_open_text = None
         self.say_after_open_time = 0
@@ -129,7 +130,7 @@ class Renksu:
             self.telegram.message("\U0001F6AA {} avasi oven.".format(member.get_public_name()))
 
         self.last_unlocked_by = member
-        self.door.unlock(settings.DOOR_PHONE_OPEN_TIME_SECONDS)
+        self.door.unlock(settings.DOOR["PHONE_OPEN_TIME_SECONDS"])
 
         self.speaker.play("bleep")
 
@@ -141,7 +142,11 @@ class Renksu:
         log.info("Incoming call ended.")
 
     def door_open_change(self, is_open):
+        now = time.time()
+
         if is_open:
+            self.last_opened_at = now
+
             if self.door.is_unlocked:
                 audit_log.info("Door opened while unlocked by %s.",
                     self.last_unlocked_by.display_name)
@@ -156,6 +161,11 @@ class Renksu:
                 self.say_after_open_text = None
         else:
             audit_log.info("Door closed.")
+
+            if (self.door.is_unlocked
+                    and self.last_opened_at
+                    and now - self.last_opened_at >= settings.DOOR["RELOCK_DEBOUNCE_TIMEOUT_SECONDS"]):
+                self.door.lock()
 
         self.mqtt.publish("door_open", "1" if is_open else "0", True)
 

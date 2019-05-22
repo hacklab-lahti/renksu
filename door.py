@@ -73,6 +73,12 @@ class Door:
         except Exception as e:
             log.error("Failed to unlock door", exc_info=e)
 
+    def lock(self):
+        try:
+            self._close_port()
+        except Exception as e:
+            log.error("Failed to lock door", exc_info=e)
+
     def _poll(self):
         new_is_open = (self.gpio.input(self.switch_pin) == self.gpio.HIGH)
 
@@ -120,6 +126,7 @@ class MockDoor:
         self.on_open_change = None
 
         self.is_unlocked = False
+        self.unlock_id = 0
 
         self.mock.add_listener("c", lambda: self._set_is_open(False))
         self.mock.add_listener("o", lambda: self._set_is_open(True))
@@ -140,16 +147,26 @@ class MockDoor:
             log.warning("Door already unlocked")
             return
 
+        unlock_id = self.unlock_id
+        self.unlock_id += 1
+
         async def unlock_async():
             self.mock.log("Door is unlocked")
             self.is_unlocked = True
 
             await asyncio.sleep(seconds)
 
+            if unlock_id != self.unlock_id:
+                return
+
             self.mock.log("Door is locked")
             self.is_unlocked = False
 
         asyncio.ensure_future(unlock_async())
+
+    def lock(self):
+        self.mock.log("Locking door immediately")
+        self.is_unlocked = False
 
     def _set_is_open(self, new_is_open):
         if new_is_open != self.is_open:

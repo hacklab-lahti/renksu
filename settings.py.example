@@ -14,14 +14,20 @@ MODEM_MODE_SWITCH_USB_ID = "12d1:151a"
 MODEM_MODE_SWITCH_CURSE = "sudo /usr/sbin/usb_modeswitch -v 12d1 -p 151a -i 2 --message-content 55534243123456780000000000000011062000000101000100000000000000"
 
 
-# Serial device for the door unlock relay
-DOOR_LOCK_SERIAL_DEVICE = "/dev/ttyAMA0"
+# Settings for door lock/sensor
+DOOR = {
+    # Serial device for the door unlock relay
+    "LOCK_SERIAL_DEVICE": "/dev/ttyAMA0",
 
-# GPIO pin addres
-DOOR_SWITCH_PIN = 12
+    # GPIO pin address
+    "SWITCH_PIN": 12,
 
-# How long to keep door open when called
-DOOR_PHONE_OPEN_TIME_SECONDS = 10
+    # How long to keep door open when called
+    "PHONE_OPEN_TIME_SECONDS": 10,
+
+    # If the door is opened for this long, the lock is locked when it closes
+    "RELOCK_DEBOUNCE_TIMEOUT_SECONDS": 3,
+}
 
 
 # File path or URL to member database
