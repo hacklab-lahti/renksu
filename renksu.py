@@ -87,7 +87,9 @@ class Renksu:
         audit_log.info("Incoming call from %s", number)
 
         if number is None:
-            audit_log.info("-> Unknown number!")
+            self.mqtt.publish("ring/hidden_number", None)
+
+            audit_log.info("-> Hidden number!")
             self.ring_doorbell()
             self.telegram.message("\U0001F514 Joku soitti ovikelloa piilotetusta numerosta.")
             return
@@ -95,6 +97,8 @@ class Renksu:
         member = await self.db.get_member_info(number)
 
         if member is None:
+            self.mqtt.publish("ring/number_not_in_database", None)
+
             audit_log.info("-> Number not in database!")
             self.ring_doorbell()
             self.telegram.message("\U0001F514 Joku soitti ovikelloa numerosta, joka ei ole jäsenrekisterissä.")
@@ -113,6 +117,8 @@ class Renksu:
                 audit_log.info("-> Not an active member!")
                 self.ring_doorbell()
 
+                self.mqtt.publish("ring/member_not_active", member.get_public_name())
+
                 self.telegram.message("\U000026D4 {} soitti ovikelloa, koska tilankäyttöoikeus ei ole voimassa."
                     .format(member.get_public_name()))
 
@@ -121,6 +127,8 @@ class Renksu:
             if (settings.MEMBERSHIP_REMAINING_MESSAGE_DAYS
                     and days_left <= settings.MEMBERSHIP_REMAINING_MESSAGE_DAYS):
                 self.say_after_open("Days remaining: {}".format(days_left))
+
+        self.mqtt.publish("ring/unlocked", member.get_public_name())
 
         audit_log.info("Opening door for %s", member.display_name)
 
@@ -165,6 +173,7 @@ class Renksu:
             if (self.door.is_unlocked
                     and self.last_opened_at
                     and now - self.last_opened_at >= settings.DOOR["RELOCK_DEBOUNCE_TIMEOUT_SECONDS"]):
+                audit_log.info("Relocking")
                 self.door.lock()
 
         self.mqtt.publish("door_open", "1" if is_open else "0", True)
