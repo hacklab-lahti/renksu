@@ -9,6 +9,7 @@ import database
 import door
 import modem
 import mqtt
+import reader
 import settings
 import speaker
 import telegram
@@ -53,6 +54,8 @@ class Renksu:
                 switch_pin=settings.DOOR["SWITCH_PIN"]))
         self.door.on_open_change = self.door_open_change
 
+        self.reader = reader.Reader(settings=settings.READER)
+
         self.last_unlocked_by = None
         self.last_opened_at = None
 
@@ -73,6 +76,7 @@ class Renksu:
         self.db.start()
         self.door.start()
         self.modem.start()
+        self.reader.start()
 
     def ring_doorbell(self):
         self.speaker.play("doorbell")

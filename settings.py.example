@@ -84,3 +84,10 @@ PRESENCE = {
     # Presence timeout for re-sending the "Door opened by" messages
     "PRESENCE_TIMEOUT_SECONDS": 8 * 60 * 60,
 }
+
+
+# Settings for RFID reader/doorbell
+READER = {
+    # Serial port (preferably use /dev/serial/by-id/)
+    "PORT": "/dev/serial/by-id/whatever"
+}
