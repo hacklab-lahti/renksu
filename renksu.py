@@ -24,9 +24,10 @@ class Renksu:
             address=settings.DATABASE_ADDRESS,
             update_interval=settings.DATABASE_UPDATE_INTERVAL_SECONDS)
 
-        self.speaker = (
-            speaker.MockSpeaker(mock) if mock
-            else speaker.Speaker())
+        #self.speaker = (
+        #    speaker.MockSpeaker(mock) if mock
+        #    else speaker.Speaker(["ding", "dong", "bleep"]))
+        self.speaker = speaker.Speaker(["ding", "dong", "bleep"])
 
         self.telegram = (
             telegram.MockTelegram(mock) if mock
@@ -55,6 +56,7 @@ class Renksu:
         self.door.on_open_change = self.door_open_change
 
         self.reader = reader.Reader(settings=settings.READER)
+        self.reader.on_button_change = self.doorbell_button_change
 
         self.last_unlocked_by = None
         self.last_opened_at = None
@@ -78,23 +80,34 @@ class Renksu:
         self.modem.start()
         self.reader.start()
 
-    def ring_doorbell(self):
-        self.speaker.play("doorbell")
+    async def ring_doorbell(self):
+        self.speaker.play("ding")
+        await asyncio.sleep(1)
+        self.speaker.play("dong")
+
+    def doorbell_button_change(self, pushed):
+        if pushed:
+            async def blink():
+                self.reader.set_led(True)
+                await asyncio.sleep(0.2)
+                self.reader.set_led(False)
+
+            asyncio.ensure_future(blink())
+
+        self.speaker.play("ding" if pushed else "dong")
 
     def say_after_open(self, text):
         self.say_after_open_text = text
         self.say_after_open_time = time.time()
 
     async def ring_start(self, number):
-        now = time.time()
-
         audit_log.info("Incoming call from %s", number)
 
         if number is None:
             self.mqtt.publish("ring/hidden_number", None)
 
             audit_log.info("-> Hidden number!")
-            self.ring_doorbell()
+            asyncio.ensure_future(self.ring_doorbell())
             self.telegram.message("\U0001F514 Joku soitti ovikelloa piilotetusta numerosta.")
             return
 
@@ -104,9 +117,14 @@ class Renksu:
             self.mqtt.publish("ring/number_not_in_database", None)
 
             audit_log.info("-> Number not in database!")
-            self.ring_doorbell()
+            asyncio.ensure_future(self.ring_doorbell())
             self.telegram.message("\U0001F514 Joku soitti ovikelloa numerosta, joka ei ole jäsenrekisterissä.")
             return
+
+        await self.maybe_unlock_for_member(member)
+
+    async def maybe_unlock_for_member(self, member):
+        now = time.time()
 
         days_left = member.get_days_until_expiration()
 
@@ -119,7 +137,7 @@ class Renksu:
                     settings.MEMBERSHIP_GRACE_PERIOD_DAYS + days_left))
             else:
                 audit_log.info("-> Not an active member!")
-                self.ring_doorbell()
+                asyncio.ensure_future(self.ring_doorbell())
 
                 self.mqtt.publish("ring/member_not_active", member.get_public_name())
 

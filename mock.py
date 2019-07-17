@@ -34,6 +34,7 @@ class MockInterface:
         if len(data) == 0:
             asyncio.get_event_loop().remove_reader(self.fifo)
             log.info("FIFO closed")
+            sys.exit(0)
             return
 
         cmd, *args = data.decode("utf-8").split()
