@@ -56,6 +56,7 @@ class Renksu:
         self.door.on_open_change = self.door_open_change
 
         self.reader = reader.Reader(settings=settings.READER)
+        self.reader.on_tag_read = self.tag_read
         self.reader.on_button_change = self.doorbell_button_change
 
         self.last_unlocked_by = None
@@ -95,6 +96,9 @@ class Renksu:
             asyncio.ensure_future(blink())
 
         self.speaker.play("ding" if pushed else "dong")
+
+    async def tag_read(self, uuid):
+        print("Tag read: ", uuid)
 
     def say_after_open(self, text):
         self.say_after_open_text = text

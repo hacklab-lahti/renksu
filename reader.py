@@ -38,7 +38,7 @@ class Reader:
 
         img = Image.new("1", (128, 64))
         draw = ImageDraw.Draw(img)
-        draw.line([(10, 10), (16, 20), (20, 15)], fill=1, width=1)
+        draw.line([(10, 15), (15, 20), (25, 10)], fill=1, width=2)
 
         self.draw(img)
 
