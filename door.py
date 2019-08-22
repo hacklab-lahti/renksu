@@ -11,20 +11,34 @@ __all__ = ["Door"]
 
 log = logging.getLogger("door")
 
-class Door:
+class BaseDoor:
+    def __init__(self):
+        self.is_unlocked = False
+        self.on_unlocked_change = None
+
+        self.is_open = False
+        self.on_open_change = None
+
+    def _set_is_unlocked(self, is_unlocked):
+        if is_unlocked != self.is_unlocked:
+            self.is_unlocked = is_unlocked
+            utils.raise_event(self.on_unlocked_change, is_unlocked)
+
+    def _set_is_open(self, is_open):
+        if is_open != self.is_open:
+            self.is_open = is_open
+            utils.raise_event(self.on_open_change, is_open)
+
+class Door(BaseDoor):
     def __init__(self, lock_serial_device, switch_pin):
+        super().__init__()
+
         import RPi.GPIO as gpio
         self.gpio = gpio
 
         self.lock_serial_device = lock_serial_device
         self.switch_pin = switch_pin
 
-        self.is_open = None
-        self.on_open_change = None
-
-        self.is_unlocked = False
-
-        #self.baud_rate = 9600
         self.baud_rate = 9600
         self.port = None
         self.bytes_left = 0
@@ -69,7 +83,7 @@ class Door:
             asyncio.get_event_loop().add_writer(self.port, self._writer)
             self._writer()
 
-            self.is_unlocked = True
+            self._set_is_unlocked(True)
         except Exception as e:
             log.error("Failed to unlock door", exc_info=e)
 
@@ -80,12 +94,7 @@ class Door:
             log.error("Failed to lock door", exc_info=e)
 
     def _poll(self):
-        new_is_open = (self.gpio.input(self.switch_pin) == self.gpio.HIGH)
-
-        if new_is_open != self.is_open:
-            self.is_open = new_is_open
-
-            utils.raise_event(self.on_open_change, new_is_open)
+        self._set_is_open(self.gpio.input(self.switch_pin) == self.gpio.HIGH)
 
     def _close_port(self):
         if self.port:
@@ -97,7 +106,7 @@ class Door:
             self.port = None
 
             self.unlocked_until = 0
-            self.is_unlocked = False
+            self._set_is_unlocked(False)
 
     def _writer(self):
         try:
@@ -119,13 +128,12 @@ class Door:
 
             self.port = None
 
-class MockDoor:
+class MockDoor(BaseDoor):
     def __init__(self, mock):
-        self.mock = mock
-        self.is_open = None
-        self.on_open_change = None
+        super().__init__()
 
-        self.is_unlocked = False
+        self.mock = mock
+
         self.unlock_id = 0
 
         self.mock.add_listener("c", lambda: self._set_is_open(False))
@@ -152,7 +160,7 @@ class MockDoor:
 
         async def unlock_async():
             self.mock.log("Door is unlocked")
-            self.is_unlocked = True
+            self._set_is_unlocked(True)
 
             await asyncio.sleep(seconds)
 
@@ -160,19 +168,14 @@ class MockDoor:
                 return
 
             self.mock.log("Door is locked")
-            self.is_unlocked = False
+            self._set_is_unlocked(False)
 
         asyncio.ensure_future(unlock_async())
 
     def lock(self):
         self.mock.log("Locking door immediately")
+        self._set_is_unlocked(False)
         self.is_unlocked = False
-
-    def _set_is_open(self, new_is_open):
-        if new_is_open != self.is_open:
-            self.is_open = new_is_open
-
-            utils.raise_event(self.on_open_change, new_is_open)
 
 if __name__ == "__main__":
     import logging.config

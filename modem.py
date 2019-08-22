@@ -211,12 +211,9 @@ class MockModem:
         if self.ringing:
             self.mock.log("Modem hanged up")
 
-    def _ring(self, number):
-        if number:
-            if number.startswith("0"):
-                number = self.default_country_prefix + number[1:]
-        else:
-            number = None
+    def _ring(self, number=None):
+        if number and number.startswith("0"):
+            number = self.default_country_prefix + number[1:]
 
         if not self.ringing or number != self.ringing_number:
             self.ringing = True

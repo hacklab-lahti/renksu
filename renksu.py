@@ -20,23 +20,25 @@ audit_log = logging.getLogger("audit")
 
 class Renksu:
     def __init__(self, mock=None):
+        def mocked(name):
+            return mock and mock.is_mocked(name)
+
         self.db = database.Database(
             address=settings.DATABASE_ADDRESS,
             update_interval=settings.DATABASE_UPDATE_INTERVAL_SECONDS)
 
-        #self.speaker = (
-        #    speaker.MockSpeaker(mock) if mock
-        #    else speaker.Speaker(["ding", "dong", "bleep"]))
-        self.speaker = speaker.Speaker(["ding", "dong", "bleep"])
+        self.speaker = speaker.Speaker(["doorbell", "bleep"])
 
         self.telegram = (
-            telegram.MockTelegram(mock) if mock
+            telegram.MockTelegram(mock)
+            if mocked("telegram")
             else telegram.Telegram(settings.TELEGRAM))
 
         self.modem = (
             modem.MockModem(
                 mock,
-                default_country_prefix=settings.MODEM_DEFAULT_COUNTRY_PREFIX) if mock
+                default_country_prefix=settings.MODEM_DEFAULT_COUNTRY_PREFIX)
+            if mocked("modem")
             else modem.Modem(
                 usb_id=settings.MODEM_USB_ID,
                 usb_config_interface=settings.MODEM_TTY_CONFIG_INTERFACE,
@@ -49,13 +51,18 @@ class Renksu:
         #self.modem.on_rssi = lambda rssi: log.debug("RSSI: %s", rssi)
 
         self.door = (
-            door.MockDoor(mock) if mock
+            door.MockDoor(mock)
+            if mocked("door")
             else door.Door(
                 lock_serial_device=settings.DOOR["LOCK_SERIAL_DEVICE"],
                 switch_pin=settings.DOOR["SWITCH_PIN"]))
         self.door.on_open_change = self.door_open_change
+        self.door.on_unlocked_change = self.door_unlocked_change
 
-        self.reader = reader.Reader(settings=settings.READER)
+        self.reader = (
+            reader.MockReader(mock)
+            if mocked("reader")
+            else reader.Reader(settings=settings.READER))
         self.reader.on_tag_read = self.tag_read
         self.reader.on_button_change = self.doorbell_button_change
 
@@ -81,47 +88,57 @@ class Renksu:
         self.modem.start()
         self.reader.start()
 
-    async def ring_doorbell(self):
-        self.speaker.play("ding")
-        await asyncio.sleep(1)
-        self.speaker.play("dong")
-
     def doorbell_button_change(self, pushed):
         if pushed:
-            async def blink():
-                self.reader.set_led(True)
-                await asyncio.sleep(0.2)
-                self.reader.set_led(False)
-
-            asyncio.ensure_future(blink())
-
-        self.speaker.play("ding" if pushed else "dong")
-
-    async def tag_read(self, uuid):
-        print("Tag read: ", uuid)
+            self.reader.show_doorbell()
+            self.speaker.play("doorbell")
 
     def say_after_open(self, text):
         self.say_after_open_text = text
         self.say_after_open_time = time.time()
 
+    async def tag_read(self, uid):
+        print("Tag read: aaa ", uid)
+
+        audit_log.info("RFID tag read")
+
+        if not uid:
+            return
+
+        member = await self.db.get_member_by_tag_id(uid)
+
+        if member is None:
+            audit_log.info("-> Tag not in database")
+
+            self.mqtt.publish("reader/unknown_tag", None)
+            self.reader.show_error("Unknown tag", sound=True)
+
+            return
+
+        await self.maybe_unlock_for_member(member)
+
     async def ring_start(self, number):
         audit_log.info("Incoming call from %s", number)
 
         if number is None:
-            self.mqtt.publish("ring/hidden_number", None)
+            audit_log.info("-> Hidden number")
 
-            audit_log.info("-> Hidden number!")
-            asyncio.ensure_future(self.ring_doorbell())
+            self.mqtt.publish("ring/hidden_number", None)
+            self.reader.show_error("Hidden number")
+
+            self.speaker.play("doorbell")
             self.telegram.message("\U0001F514 Joku soitti ovikelloa piilotetusta numerosta.")
             return
 
-        member = await self.db.get_member_info(number)
+        member = await self.db.get_member_by_number(number)
 
         if member is None:
-            self.mqtt.publish("ring/number_not_in_database", None)
+            audit_log.info("-> Number not in database")
 
-            audit_log.info("-> Number not in database!")
-            asyncio.ensure_future(self.ring_doorbell())
+            self.mqtt.publish("ring/number_not_in_database", None)
+            self.reader.show_error("Unknown number")
+
+            self.speaker.play("doorbell")
             self.telegram.message("\U0001F514 Joku soitti ovikelloa numerosta, joka ei ole jäsenrekisterissä.")
             return
 
@@ -141,12 +158,14 @@ class Renksu:
                     settings.MEMBERSHIP_GRACE_PERIOD_DAYS + days_left))
             else:
                 audit_log.info("-> Not an active member!")
-                asyncio.ensure_future(self.ring_doorbell())
+                #asyncio.ensure_future(self.ring_doorbell())
 
                 self.mqtt.publish("ring/member_not_active", member.get_public_name())
 
-                self.telegram.message("\U000026D4 {} soitti ovikelloa, koska tilankäyttöoikeus ei ole voimassa."
-                    .format(member.get_public_name()))
+                #self.telegram.message("\U000026D4 {} soitti ovikelloa, koska tilankäyttöoikeus ei ole voimassa."
+                #    .format(member.get_public_name()))
+
+                self.reader.show_membership_not_active(member)
 
                 return
         else:
@@ -167,6 +186,8 @@ class Renksu:
         self.door.unlock(settings.DOOR["PHONE_OPEN_TIME_SECONDS"])
 
         self.speaker.play("bleep")
+
+        self.reader.show_unlocked(member)
 
         await asyncio.sleep(2)
 
@@ -205,6 +226,10 @@ class Renksu:
         self.mqtt.publish("door_open", "1" if is_open else "0", True)
 
         self.update_presence()
+
+    def door_unlocked_change(self, is_unlocked):
+        if not is_unlocked:
+            self.reader.show_locked()
 
     def light_on_change(self, light_on):
         if light_on and not self.presence:

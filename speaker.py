@@ -15,7 +15,7 @@ class Speaker:
         self.playing = {}
 
         for name in sounds:
-            filename = "{}.wav".format(name)
+            filename = "res/{}.wav".format(name)
 
             if not os.path.exists(filename):
                 continue

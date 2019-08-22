@@ -21,9 +21,22 @@ def raise_event(handler, *args):
         res = handler(*args)
 
         if inspect.isawaitable(res):
-            asyncio.ensure_future(res)
+            run_background(res)
     except Exception as e:
-        log.error("Exception in event handler", exc_info=e)
+        log.error("Exception in background task", exc_info=e)
+
+def run_background(coro):
+    def done(task):
+        if task.cancelled():
+            return
+
+        e = task.exception()
+        if e:
+            log.error("Exception in background task", exc_info=e)
+
+    task = asyncio.ensure_future(coro)
+    task.add_done_callback(done)
+    return task
 
 def run_event_loop(debug=False):
     loop = asyncio.get_event_loop()

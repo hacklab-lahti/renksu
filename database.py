@@ -24,12 +24,16 @@ csv.register_dialect(
 ONE_DAY = 60 * 60 * 24
 
 class MemberInfo:
-    def __init__(self, id, name, phone_number, active_until, public_name):
+    def __init__(self, id, name, phone_number, active_until, public_name, tag_ids):
+        if type(tag_ids) == str:
+            tag_ids = [id.strip() for id in tag_ids.lower().split(";")]
+
         self.id = id
         self.name = name
         self.phone_number = phone_number
         self.active_until = active_until
         self.public_name = public_name
+        self.tag_ids = tag_ids or []
 
     def get_days_until_expiration(self):
         return int(((self.active_until - time.time()) // ONE_DAY) + 1)
@@ -45,7 +49,8 @@ class MemberInfo:
         return (self.id == other.id and self.name == other.name
             and self.phone_number == other.phone_number
             and self.active_until == other.active_until
-            and self.public_name == other.public_name)
+            and self.public_name == other.public_name
+            and self.tag_ids == other.tag_ids)
 
 class Database:
     def __init__(self, address, update_interval):
@@ -84,7 +89,8 @@ class Database:
                         str(mdata["name"]),
                         str(mdata["phone_number"]),
                         int(time.mktime(time.strptime(mdata["active_until"], "%Y-%m-%d"))),
-                        mdata.get("public_name", None) or None))
+                        mdata.get("public_name", None) or None,
+                        mdata.get("tag_ids", None) or None))
 
             if new_members != self.members:
                 self.members = new_members
@@ -117,24 +123,28 @@ class Database:
                     "phone_number": m.phone_number,
                     "active_until": time.strftime("%Y-%m-%d", time.gmtime(m.active_until)),
                     "public_name": m.public_name,
+                    "tag_ids": m.tag_ids,
                 }, self.members)), indent=True))
 
             os.rename(temp_file_name, self.file_name)
         except Exception as e:
             log.error("Failed to save database", exc_info=e)
 
-    async def get_member_info(self, number):
-        member = self._find_member(number)
+    async def get_member_by_number(self, number):
+        return await self._find_member(lambda m: m.phone_number == number)
+
+    async def get_member_by_tag_id(self, tag_id):
+        return await self._find_member(lambda m: tag_id in m.tag_ids)
+
+    async def _find_member(self, predicate):
+        member = next((m for m in self.members if predicate(m)), None)
         if member is not None:
             return member
 
         # Maybe the member has just been added, try to update with low timeout
         await self._update(timeout=2)
 
-        return self._find_member(number)
-
-    def _find_member(self, number):
-        return next((m for m in self.members if m.phone_number == number), None)
+        return next((m for m in self.members if predicate(m)), None)
 
 if __name__ == "__main__":
     logging.basicConfig(format="%(asctime)-15s %(name)s %(message)s", level=logging.DEBUG)
