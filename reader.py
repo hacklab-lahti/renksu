@@ -175,6 +175,8 @@ class BaseReader:
 
             i += 1
 
+        self.set_led(False)
+
         self.show_locked()
 
     @sequence
