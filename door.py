@@ -55,17 +55,17 @@ class Door(BaseDoor):
         try:
             if seconds <= 0:
                 log.warning("Invalid unlock timeout: %ss", seconds)
-                return
+                return False
 
             if seconds >= 30:
                 log.error("Door unlock timeout too long: %ss", seconds)
-                return
+                return False
 
             now = time.time()
 
             if self.unlocked_until > now:
                 log.warning("Door already unlocked")
-                return
+                return False
 
             self.unlocked_until = now + seconds
 
@@ -84,8 +84,12 @@ class Door(BaseDoor):
             self._writer()
 
             self._set_is_unlocked(True)
+
+            return True
         except Exception as e:
             log.error("Failed to unlock door", exc_info=e)
+
+            return False
 
     def lock(self):
         try:
@@ -145,18 +149,18 @@ class MockDoor(BaseDoor):
     def unlock(self, seconds):
         if seconds <= 0:
             log.warning("Invalid unlock timeout: %ss", seconds)
-            return
+            return False
 
         if seconds >= 30:
             log.error("Door unlock timeout too long: %ss", seconds)
-            return
+            return False
 
         if self.is_unlocked:
             log.warning("Door already unlocked")
-            return
+            return False
 
-        unlock_id = self.unlock_id
         self.unlock_id += 1
+        unlock_id = self.unlock_id
 
         async def unlock_async():
             self.mock.log("Door is unlocked")
@@ -171,6 +175,8 @@ class MockDoor(BaseDoor):
             self._set_is_unlocked(False)
 
         asyncio.ensure_future(unlock_async())
+
+        return True
 
     def lock(self):
         self.mock.log("Locking door immediately")

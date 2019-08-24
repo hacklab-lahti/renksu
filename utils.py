@@ -30,9 +30,9 @@ def run_background(coro):
         if task.cancelled():
             return
 
-        e = task.exception()
-        if e:
-            log.error("Exception in background task", exc_info=e)
+        ex = task.exception()
+        if ex and type(ex) != asyncio.CancelledError:
+            log.error("Exception in background task", exc_info=ex)
 
     task = asyncio.ensure_future(coro)
     task.add_done_callback(done)

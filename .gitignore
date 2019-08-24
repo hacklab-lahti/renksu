@@ -2,9 +2,9 @@ __pycache__
 .vscode
 venv
 logs/*
-scratch.txt
 *.wav
-members.json
-settings.py
-mock.fifo
 members.csv
+members.json
+mock.fifo
+scratch.txt
+settings.py

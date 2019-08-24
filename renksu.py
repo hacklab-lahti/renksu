@@ -89,7 +89,7 @@ class Renksu:
         self.reader.start()
 
     def doorbell_button_change(self, pushed):
-        if pushed:
+        if pushed and not self.door.is_unlocked:
             self.reader.show_doorbell()
             self.speaker.play("doorbell")
 
@@ -98,12 +98,12 @@ class Renksu:
         self.say_after_open_time = time.time()
 
     async def tag_read(self, uid):
-        print("Tag read: aaa ", uid)
-
-        audit_log.info("RFID tag read")
+        #print("Tag read: aaa ", uid)
 
         if not uid:
             return
+
+        audit_log.info("RFID tag read")
 
         member = await self.db.get_member_by_tag_id(uid)
 
@@ -111,11 +111,13 @@ class Renksu:
             audit_log.info("-> Tag not in database")
 
             self.mqtt.publish("reader/unknown_tag", None)
-            self.reader.show_error("Unknown tag", sound=True)
+
+            if not self.door.is_unlocked:
+                self.reader.show_unknown("Unknown tag", sound=True)
 
             return
 
-        await self.maybe_unlock_for_member(member)
+        await self.maybe_unlock_for_member(member, "tag")
 
     async def ring_start(self, number):
         audit_log.info("Incoming call from %s", number)
@@ -124,7 +126,7 @@ class Renksu:
             audit_log.info("-> Hidden number")
 
             self.mqtt.publish("ring/hidden_number", None)
-            self.reader.show_error("Hidden number")
+            self.reader.show_unknown("Hidden number")
 
             self.speaker.play("doorbell")
             self.telegram.message("\U0001F514 Joku soitti ovikelloa piilotetusta numerosta.")
@@ -136,22 +138,26 @@ class Renksu:
             audit_log.info("-> Number not in database")
 
             self.mqtt.publish("ring/number_not_in_database", None)
-            self.reader.show_error("Unknown number")
+            self.reader.show_unknown("Unknown number")
 
             self.speaker.play("doorbell")
             self.telegram.message("\U0001F514 Joku soitti ovikelloa numerosta, joka ei ole jäsenrekisterissä.")
             return
 
-        await self.maybe_unlock_for_member(member)
+        await self.maybe_unlock_for_member(member, "phone")
 
-    async def maybe_unlock_for_member(self, member):
+        await asyncio.sleep(2)
+
+        self.modem.hangup()
+
+    async def maybe_unlock_for_member(self, member, method):
         now = time.time()
 
         days_left = member.get_days_until_expiration()
 
         audit_log.info("Membership days left: {}".format(days_left))
 
-        if days_left <= 0:
+        if days_left < 0:
             if (settings.MEMBERSHIP_GRACE_PERIOD_DAYS
                     and -days_left < settings.MEMBERSHIP_GRACE_PERIOD_DAYS):
                 self.say_after_open("Membership expired. Days of grace period remaining: {}".format(
@@ -182,16 +188,16 @@ class Renksu:
             self.presence_members[member.id] = now
             self.telegram.message("\U0001F6AA {} avasi oven.".format(member.get_public_name()))
 
+        open_time = settings.DOOR["PHONE_OPEN_TIME_SECONDS"]
+
+        if not self.door.unlock(open_time):
+            return
+
         self.last_unlocked_by = member
-        self.door.unlock(settings.DOOR["PHONE_OPEN_TIME_SECONDS"])
 
         self.speaker.play("bleep")
 
-        self.reader.show_unlocked(member)
-
-        await asyncio.sleep(2)
-
-        self.modem.hangup()
+        self.reader.show_unlocked(member, open_time, method)
 
     def ring_end(self):
         log.info("Incoming call ended.")
