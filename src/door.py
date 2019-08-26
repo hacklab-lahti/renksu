@@ -26,6 +26,39 @@ class BaseDoor:
             self.is_open = is_open
             utils.raise_event(self.on_open_change, is_open)
 
+            if self.is_unlocked and self.is_open:
+                utils.Timer(self.lock, 0.5)
+
+    def unlock(self):
+        seconds = self.settings.getint("unlock_time_seconds", fallback=10)
+
+        try:
+            if seconds <= 0:
+                log.warning("Invalid unlock timeout: %ss", seconds)
+                return False
+
+            if seconds >= 30:
+                log.error("Door unlock timeout too long: %ss", seconds)
+                return False
+
+            now = time.time()
+
+            if self.unlocked_until > now:
+                log.warning("Door already unlocked")
+                return False
+
+            self._unlock_core(seconds)
+
+            self.unlocked_until = now + seconds
+
+            self._set_is_unlocked(True)
+
+            return True
+        except Exception as e:
+            log.error("Failed to unlock door", exc_info=e)
+
+            return False
+
 class Door(BaseDoor):
     def __init__(self, settings):
         super().__init__()
@@ -48,49 +81,22 @@ class Door(BaseDoor):
         self.gpio.setup(self.sensor_gpio_pin, self.gpio.IN, pull_up_down=self.gpio.PUD_UP)
 
         self._poll()
-        utils.Timer(self._poll, 0.5, True)
+        utils.Timer(self._poll, 1, True)
 
-    def unlock(self):
-        seconds = self.settings.getint("unlock_time_seconds", fallback=10)
+    def _unlock_core(self, seconds):
+        # 1 byte of data = 10 bits on line (8 data, 1 start, 1 stop)
+        self.bytes_left = int(self.baud_rate / 10 * seconds)
 
-        try:
-            if seconds <= 0:
-                log.warning("Invalid unlock timeout: %ss", seconds)
-                return False
+        self._close_port()
 
-            if seconds >= 30:
-                log.error("Door unlock timeout too long: %ss", seconds)
-                return False
+        self.port = serial.Serial(
+            port=self.lock_serial_port,
+            baudrate=self.baud_rate,
+            timeout=0,
+            write_timeout=0)
 
-            now = time.time()
-
-            if self.unlocked_until > now:
-                log.warning("Door already unlocked")
-                return False
-
-            self.unlocked_until = now + seconds
-
-            # 1 byte of data = 10 bits on line (8 data, 1 start, 1 stop)
-            self.bytes_left = int(self.baud_rate / 10 * seconds)
-
-            self._close_port()
-
-            self.port = serial.Serial(
-                port=self.lock_serial_port,
-                baudrate=self.baud_rate,
-                timeout=0,
-                write_timeout=0)
-
-            asyncio.get_event_loop().add_writer(self.port, self._writer)
-            self._writer()
-
-            self._set_is_unlocked(True)
-
-            return True
-        except Exception as e:
-            log.error("Failed to unlock door", exc_info=e)
-
-            return False
+        asyncio.get_event_loop().add_writer(self.port, self._writer)
+        self._writer()
 
     def lock(self):
         try:
@@ -148,30 +154,13 @@ class MockDoor(BaseDoor):
     def start(self):
         self.mock.log("Door started")
 
-    def unlock(self):
-        seconds = self.settings.getint("unlock_time_seconds", fallback=10)
-
-        if seconds <= 0:
-            log.warning("Invalid unlock timeout: %ss", seconds)
-            return False
-
-        if seconds >= 30:
-            log.error("Door unlock timeout too long: %ss", seconds)
-            return False
-
-        if self.is_unlocked:
-            log.warning("Door already unlocked")
-            return False
-
+    def _unlock_core(self, seconds):
         self.unlock_id += 1
         unlock_id = self.unlock_id
 
         self.unlocked_until = time.time() + seconds
 
         async def unlock_async():
-            self.mock.log("Door is unlocked")
-            self._set_is_unlocked(True)
-
             await asyncio.sleep(seconds)
 
             if unlock_id != self.unlock_id:
@@ -180,6 +169,7 @@ class MockDoor(BaseDoor):
             self.mock.log("Door is locked")
             self._set_is_unlocked(False)
 
+        self.mock.log("Door is unlocked")
         asyncio.ensure_future(unlock_async())
 
         return True
