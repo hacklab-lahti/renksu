@@ -159,10 +159,10 @@ class BaseReader:
                 draw.text((24, 2), member.public_name or member.name, fill=1, font=self.font)
 
                 if is_expired and (i % 10) < 5:
-                    draw.rectangle((0, 32, 128, 52), fill=1)
-                    draw.text((0, 30), expires, fill=0, font=self.font)
+                    draw.rectangle((0, 28, 128, 48), fill=1)
+                    draw.text((0, 26), expires, fill=0, font=self.font)
                 else:
-                    draw.text((0, 30), expires, fill=1, font=self.font)
+                    draw.text((0, 26), expires, fill=1, font=self.font)
 
                 w = int((unlocked_until - time.time()) / ((unlocked_until - start) or 1) * 128)
                 draw.rectangle((0, 56, w, 63), fill=1)
