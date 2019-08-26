@@ -21,7 +21,7 @@ ONE_DAY = 60 * 60 * 24
 class MemberInfo:
     def __init__(self, id, name, phone_number, active_until, public_name, tag_ids):
         if type(tag_ids) == str:
-            tag_ids = [id.strip() for id in tag_ids.lower().split(";")]
+            tag_ids = tag_ids.replace(" ", "").lower().split(";")
 
         self.id = id
         self.name = name
@@ -126,19 +126,18 @@ class Database:
             log.error("Failed to save database", exc_info=e)
 
     async def get_member_by_number(self, number):
+        if not number:
+            return None
+
         return await self._find_member(lambda m: m.phone_number == number)
 
     async def get_member_by_tag_id(self, tag_id):
+        if not tag_id:
+            return None
+
         return await self._find_member(lambda m: tag_id in m.tag_ids)
 
     async def _find_member(self, predicate):
-        member = next((m for m in self.members if predicate(m)), None)
-        if member is not None:
-            return member
-
-        # Maybe the member has just been added, try to update with low timeout
-        await self._update(timeout=2)
-
         return next((m for m in self.members if predicate(m)), None)
 
 if __name__ == "__main__":
