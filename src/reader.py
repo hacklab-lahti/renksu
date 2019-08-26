@@ -143,7 +143,7 @@ class BaseReader:
         expires = time.strftime("%Y-%m-%d", time.localtime(member.active_until))
 
         start = time.time()
-        buzz = [(100, 200, 16)] * math.ceil(unlocked_until - start)
+        buzz = [(440, 200, 16)] * math.ceil(unlocked_until - start)
         if is_expired:
             self.beep(mml("A#10 R10 A#10 R10 A#10 R50 A#10 R10 A#10 R10 A#10") + buzz)
         else:
