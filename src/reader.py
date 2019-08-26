@@ -205,7 +205,7 @@ class BaseReader:
                 (1392, 10, 128), (0, 100, 128),
             ] * 2)
 
-        for i in range(0, 16):
+        for i in range(0, 8):
             with self.draw() as draw:
                 draw.paste(self.icons40["bell_{}".format(i % 4)], (64 - 20, 32 - 20))
 
