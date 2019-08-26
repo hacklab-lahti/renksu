@@ -23,10 +23,10 @@ Create virtual environment and install pip packages
     $ python3 -m venv venv
     $ venv/bin/pip install -r requirements.txt
 
-Create settings.py based on the example file, edit to taste and test:
+Create settings.ini based on the example file, edit to taste and test:
 
-    $ cp settings.py.example settings.py
-    $ your_favorite_editor settings.py
+    $ cp settings.ini.example settings.ini
+    $ your_favorite_editor settings.ini
     $ ./run.sh
 
 Edit renksu.service.example to set correct path and user and install (as root):
