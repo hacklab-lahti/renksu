@@ -252,7 +252,7 @@ class Renksu:
             delay = (
                 0
                 if self.presence is None or new_presence
-                else self.settings.getint("presence", "leave_delay_seconds", 0))
+                else self.settings.getint("presence", "leave_delay_seconds", fallback=0))
 
             self.presence_timer = utils.Timer(set_presence, delay)
 

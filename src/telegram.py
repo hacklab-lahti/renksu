@@ -22,7 +22,7 @@ class Telegram:
         try:
             text = urllib.parse.quote(text)
             url = ("https://api.telegram.org/bot{}/sendMessage?chat_id={}&text={}&disable_notification={}"
-                .format(self.settingsget("bot_token"), self.settings.get("chat_id"), text, "true"))
+                .format(self.settings.get("bot_token"), self.settings.get("chat_id"), text, "true"))
 
             async with aiohttp.ClientSession() as session:
                 async with session.get(url, timeout=10) as resp:
