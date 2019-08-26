@@ -5,7 +5,6 @@ import os.path
 import serial
 import time
 
-import settings
 import utils
 
 __all__ = ["Modem"]

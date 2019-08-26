@@ -95,14 +95,14 @@ class BaseReader:
 
         self.current_seq = None
 
-        self.font = ImageFont.load("res/spleen.pil")
+        self.font = ImageFont.load(utils.basedir() + "res/spleen.pil")
 
-        self.icons20 = load_icons("res/icons-20.png", 20, [
+        self.icons20 = load_icons(utils.basedir() + "res/icons-20.png", 20, [
             "enter_0", "enter_1", "enter_2", "enter_3", "enter_4",
             "tag", "phone", "lock", "x", "error", "unknown",
         ])
 
-        self.icons40 = load_icons("res/icons-40.png", 40, [
+        self.icons40 = load_icons(utils.basedir() + "res/icons-40.png", 40, [
             "bell_0", "bell_1", "bell_2", "bell_3",
             "unlocked", "locked",
         ])

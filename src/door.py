@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import mmap
 import os
 import serial
 import time

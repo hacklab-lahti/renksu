@@ -1,10 +1,14 @@
 import asyncio
 import inspect
 import logging
+import os.path
 
 __all__ = ["read_file_ignore_errors", "raise_event", "run_event_loop", "Timer"]
 
 log = logging.getLogger("utils")
+
+def basedir():
+    return os.path.dirname(__file__) + "/"
 
 def read_file_ignore_errors(path):
     try:

@@ -1,2 +1,2 @@
 #!/bin/bash
-venv/bin/python3 mock.py $@
+venv/bin/python3 src/mock.py $@

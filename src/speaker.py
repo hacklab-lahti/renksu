@@ -6,6 +6,7 @@ import subprocess
 import tempfile
 import time
 import threading
+import utils
 
 log = logging.getLogger("speaker")
 
@@ -15,7 +16,7 @@ class Speaker:
         self.playing = {}
 
         for name in sounds:
-            filename = "res/{}.wav".format(name)
+            filename = utils.basedir() + "res/{}.wav".format(name)
 
             if not os.path.exists(filename):
                 continue

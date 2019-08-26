@@ -5,6 +5,5 @@ logs/*
 *.wav
 members.csv
 members.json
-mock.fifo
 scratch.txt
 settings.py

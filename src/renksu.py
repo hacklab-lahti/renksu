@@ -10,10 +10,14 @@ import door
 import modem
 import mqtt
 import reader
-import settings
 import speaker
 import telegram
 import utils
+
+# TODO replace with something nicer
+from importlib.machinery import SourceFileLoader
+import os.path
+settings = SourceFileLoader("settings", utils.basedir() + "../settings.py").load_module()
 
 log = logging.getLogger("renksu")
 audit_log = logging.getLogger("audit")
