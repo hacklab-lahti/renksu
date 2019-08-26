@@ -30,11 +30,13 @@ class Door(BaseDoor):
     def __init__(self, settings):
         super().__init__()
 
+        self.settings = settings
+
         import RPi.GPIO as gpio
         self.gpio = gpio
 
-        self.lock_serial_port = settings.get("lock_serial_port")
-        self.sensor_gpio_pin = settings.get("sensor_gpio_pin")
+        self.lock_serial_port = self.settings.get("lock_serial_port")
+        self.sensor_gpio_pin = self.settings.getint("sensor_gpio_pin")
 
         self.baud_rate = 9600
         self.port = None
