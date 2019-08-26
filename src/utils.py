@@ -3,8 +3,6 @@ import inspect
 import logging
 import os.path
 
-__all__ = ["read_file_ignore_errors", "raise_event", "run_event_loop", "Timer"]
-
 log = logging.getLogger("utils")
 
 def basedir():
@@ -26,8 +24,8 @@ def raise_event(handler, *args):
 
         if inspect.isawaitable(res):
             run_background(res)
-    except Exception as e:
-        log.error("Exception in background task", exc_info=e)
+    except Exception as ex:
+        log.error("Exception in background task", exc_info=ex)
 
 def run_background(coro):
     def done(task):

@@ -9,11 +9,6 @@ import time
 
 import utils
 
-__all__ = [
-    "STATUS_ACTIVE", "STATUS_INACTIVE", "STATUS_UNKNOWN",
-    "Database"
-]
-
 log = logging.getLogger("database")
 
 csv.register_dialect(
@@ -53,9 +48,9 @@ class MemberInfo:
             and self.tag_ids == other.tag_ids)
 
 class Database:
-    def __init__(self, address, update_interval):
-        self.address = address
-        self.update_interval = update_interval
+    def __init__(self, settings):
+        self.address = settings.get("address")
+        self.update_interval_seconds = settings.getint("update_interval_seconds")
 
         self.file_name = "members.json"
         self.members = []
@@ -65,7 +60,7 @@ class Database:
 
         self._load_from_file()
 
-        utils.Timer(self._update, self.update_interval, True)
+        utils.Timer(self._update, self.update_interval_seconds, True)
 
     async def _update(self, timeout=10):
         if "://" in self.address:

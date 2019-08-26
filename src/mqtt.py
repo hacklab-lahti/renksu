@@ -23,12 +23,18 @@ class MqttClient:
         self.light_on = None
         self.on_light_on_change = None
 
+        self.topic_prefix = self.settings.get("topic_prefix")
+        self.light_status_topic = self.settings.get("light_status_topic", None)
+        self.light_status_on = self.settings.get("light_status_on", None)
+
     def start(self):
         self.client = mqtt.Client()
-        self.client.will_set(self.settings["TOPIC_PREFIX"] + "online", "0", 2, True)
-        self.client.connect_async(self.settings["HOST"], self.settings["PORT"], 60)
-        if self.settings["USERNAME"]:
-            self.client.username_pw_set(self.settings["USERNAME"], self.settings["PASSWORD"])
+        self.client.will_set(self.topic_prefix + "online", "0", 2, True)
+        self.client.connect_async(self.settings.get("host"), self.settings.getint("port"), 60)
+        if self.settings.get("username", None):
+            self.client.username_pw_set(
+                self.settings.get("username"),
+                self.settings.get("password"))
         self.client.on_connect = self._on_connect
         self.client.on_message = self._on_message
 
@@ -38,7 +44,7 @@ class MqttClient:
         log.debug("send: {} {}{}".format(topic, payload, " (retain)" if retain else ""))
 
         try:
-            self.client.publish(self.settings["TOPIC_PREFIX"] + topic, payload, 2, retain)
+            self.client.publish(self.topic_prefix + topic, payload, 2, retain)
         except Exception as e:
             log.error("Failed to publish to MQTT: {} {}".format(topic, payload), exc_info=e)
 
@@ -46,8 +52,8 @@ class MqttClient:
     async def _on_connect(self, client, userdata, flags, rc):
         log.info("Connected to server")
 
-        if self.settings["LIGHT_STATUS_TOPIC"]:
-            self.client.subscribe(self.settings["LIGHT_STATUS_TOPIC"][0])
+        if self.light_status_topic:
+            self.client.subscribe(self.light_status_topic)
 
         self.publish("online", "1", True)
 
@@ -58,8 +64,8 @@ class MqttClient:
 
         log.debug("recv: {} {}".format(msg.topic, msg.payload))
 
-        if self.settings["LIGHT_STATUS_TOPIC"] and msg.topic == self.settings["LIGHT_STATUS_TOPIC"][0]:
-            new_light_on = (msg.payload == self.settings["LIGHT_STATUS_TOPIC"][1])
+        if self.self.light_status_topic and msg.topic == self.light_status_topic:
+            new_light_on = (msg.payload == self.light_status_on)
 
             if new_light_on != self.light_on:
                 self.light_on = new_light_on

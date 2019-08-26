@@ -10,8 +10,6 @@ import time
 import utils
 from PIL import Image, ImageDraw, ImageFont
 
-__all__ = ["Reader"]
-
 log = logging.getLogger("reader")
 
 # otf2bdf -l "45 48_57" -p 40 -o dejavu.bdf /usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf
@@ -140,22 +138,21 @@ class BaseReader:
         await asyncio.sleep(5)
 
     @sequence
-    async def show_unlocked(self, member, open_time, method):
+    async def show_unlocked(self, member, unlocked_until, method):
         is_expired = (member.get_days_until_expiration() < 0)
         expires = time.strftime("%Y-%m-%d", time.localtime(member.active_until))
 
-        buzz = [(100, 200, 16)] * open_time
+        start = time.time()
+        buzz = [(100, 200, 16)] * math.ceil(unlocked_until - start)
         if is_expired:
             self.beep(mml("A#10 R10 A#10 R10 A#10 R50 A#10 R10 A#10 R10 A#10") + buzz)
         else:
             self.beep(mml("A#10 R10 > F10 R10 A#10 R10 > F10") + buzz)
 
-        until = time.time() + open_time
-
         self.set_led(True)
 
         i = 0
-        while time.time() < until:
+        while time.time() < unlocked_until:
             with self.draw() as draw:
                 draw.paste(self.icons20[method], (0, 4))
 
@@ -167,7 +164,7 @@ class BaseReader:
                 else:
                     draw.text((0, 30), expires, fill=1, font=self.font)
 
-                w = int((until - time.time()) / open_time * 128)
+                w = int((unlocked_until - time.time()) / ((unlocked_until - start) or 1) * 128)
                 draw.rectangle((0, 56, w, 63), fill=1)
                 draw.rectangle((0, 56, 127, 63), outline=1, width=1)
 
@@ -268,14 +265,14 @@ class Reader(BaseReader):
             cmd.replace(b"\\", b"\\\\").replace(b"\n", b"\\n") + b"\n")
 
     async def _poll_task(self):
-        if not self.settings["PORT"]:
+        if not self.settings.get("serial_port", None):
             return
 
         last_error = None
         while True:
             try:
                 reader, writer = await serial_asyncio.open_serial_connection(
-                    url=self.settings["PORT"],
+                    url=self.settings.get("serial_port", None),
                     baudrate=115200)
 
                 self._reset()

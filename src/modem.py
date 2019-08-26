@@ -7,18 +7,14 @@ import time
 
 import utils
 
-__all__ = ["Modem"]
-
 log = logging.getLogger("modem")
 
 class Modem:
-    def __init__(self, usb_id, usb_config_interface, default_country_prefix,
-            mode_switch_usb_id=None, mode_switch_curse=None):
-        self.usb_id = usb_id.lower()
-        self.usb_config_interface = usb_config_interface
-        self.default_country_prefix = default_country_prefix
-        self.mode_switch_usb_id = mode_switch_usb_id
-        self.mode_switch_curse = mode_switch_curse
+    def __init__(self, settings):
+        self.serial_port = settings.get("serial_port")
+        self.default_country_prefix = settings.get("default_country_prefix")
+        self.mode_switch_usb_id = settings.get("mode_switch_usb_id")
+        self.mode_switch_command = settings.get("mode_switch_command")
 
         self.on_rssi = None
         self.ringing = False
@@ -73,17 +69,16 @@ class Modem:
     def _open_port(self):
         self._close_port()
 
-        dev = self._find_device()
-        if dev is None:
+        if not self._device_present():
             raise Exception("Device not found")
 
-        log.debug("Opening " + dev)
+        log.debug("Opening " + self.serial_port)
 
         self.prev_line_time = 0
 
         try:
             self.port = serial.Serial(
-                port=dev,
+                port=self.serial_port,
                 baudrate=9600,
                 dsrdtr=True,
                 rtscts=True,
@@ -124,8 +119,6 @@ class Modem:
             self._close_port()
 
     def _process_line(self, line):
-        #log.debug("Got: " + line)
-
         if line.startswith("^RSSI:"):
             rssi = int(line.split(":")[1].strip())
 
@@ -159,7 +152,10 @@ class Modem:
 
         utils.raise_event(self.on_ring_end)
 
-    def _find_device(self):
+    def _device_present(self):
+        if os.path.exists(self.serial_port):
+            return True
+
         USB_ROOT = "/sys/bus/usb/devices"
 
         for usbdev in os.listdir(USB_ROOT):
@@ -171,28 +167,17 @@ class Modem:
                     utils.read_file_ignore_errors(os.path.join(usbdev_path, "idProduct")))
                 .lower())
 
-            if usb_id == self.usb_id:
-                tty_iface_path = os.path.join(usbdev_path,
-                    "{0}:{1}".format(usbdev, self.usb_config_interface))
+            if usb_id == self.mode_switch_usb_id:
+                log.info("Attempting USB mode switch")
 
-                if os.path.exists(tty_iface_path):
-                    tty_name = next((
-                        n
-                        for n
-                        in os.listdir(tty_iface_path)
-                        if n.startswith("ttyUSB")), None)
+                os.system(self.mode_switch_command)
 
-                    if tty_name:
-                        return "/dev/{0}".format(tty_name)
-            elif usb_id == self.mode_switch_usb_id:
-                os.system(self.mode_switch_curse)
-
-        return None
+        return False
 
 class MockModem:
-    def __init__(self, mock, default_country_prefix):
+    def __init__(self, mock, settings):
         self.mock = mock
-        self.default_country_prefix = default_country_prefix
+        self.default_country_prefix = settings.get("default_country_prefix")
 
         self.on_rssi = None
         self.ringing = False
@@ -228,25 +213,3 @@ class MockModem:
         self.ringing_number = None
 
         utils.raise_event(self.on_ring_end)
-
-if __name__ == "__main__":
-    import logging.config
-    logging.config.fileConfig("logging.ini")
-
-    print("Testing Modem")
-
-    import settings
-
-    modem = Modem(
-        usb_id=settings.MODEM_USB_ID,
-        usb_config_interface=settings.MODEM_TTY_CONFIG_INTERFACE,
-        default_country_prefix=settings.MODEM_DEFAULT_COUNTRY_PREFIX,
-        mode_switch_usb_id=settings.MODEM_MODE_SWITCH_USB_ID,
-        mode_switch_curse=settings.MODEM_MODE_SWITCH_CURSE)
-    modem.on_ring_start = lambda num: print("Incoming call from {}".format(num))
-    modem.on_ring_end = lambda: print("Incoming call ended.")
-    modem.on_rssi = lambda rssi: print("RSSI: {}".format(rssi))
-
-    modem.start()
-
-    utils.run_event_loop()

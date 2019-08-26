@@ -10,7 +10,7 @@ import sys
 import renksu
 import utils
 
-log = logging.getLogger("MOCK")
+log = logging.getLogger("(mock)")
 
 FIFO_PATH = "/tmp/renksu_mock.fifo"
 

@@ -1,7 +1,9 @@
+import os.path
 import logging, logging.config
-logging.config.fileConfig("logging.ini")
+logging.config.fileConfig(os.path.dirname(__file__) + "/../logging.ini")
 
 import asyncio
+import configparser
 import sys
 import time
 
@@ -14,11 +16,6 @@ import speaker
 import telegram
 import utils
 
-# TODO replace with something nicer
-from importlib.machinery import SourceFileLoader
-import os.path
-settings = SourceFileLoader("settings", utils.basedir() + "../settings.py").load_module()
-
 log = logging.getLogger("renksu")
 audit_log = logging.getLogger("audit")
 
@@ -27,46 +24,37 @@ class Renksu:
         def mocked(name):
             return mock and mock.is_mocked(name)
 
-        self.db = database.Database(
-            address=settings.DATABASE_ADDRESS,
-            update_interval=settings.DATABASE_UPDATE_INTERVAL_SECONDS)
+        self.settings = configparser.ConfigParser(allow_no_value=True)
+        self.settings.read(utils.basedir() + "../settings.ini")
+
+        self.db = database.Database(settings=self.settings["database"])
 
         self.speaker = speaker.Speaker(["doorbell", "bleep"])
 
         self.telegram = (
             telegram.MockTelegram(mock)
             if mocked("telegram")
-            else telegram.Telegram(settings.TELEGRAM))
+            else telegram.Telegram(self.settings["telegram"]))
 
         self.modem = (
-            modem.MockModem(
-                mock,
-                default_country_prefix=settings.MODEM_DEFAULT_COUNTRY_PREFIX)
+            modem.MockModem(mock, self.settings["modem"])
             if mocked("modem")
-            else modem.Modem(
-                usb_id=settings.MODEM_USB_ID,
-                usb_config_interface=settings.MODEM_TTY_CONFIG_INTERFACE,
-                default_country_prefix=settings.MODEM_DEFAULT_COUNTRY_PREFIX,
-                mode_switch_usb_id=settings.MODEM_MODE_SWITCH_USB_ID,
-                mode_switch_curse=settings.MODEM_MODE_SWITCH_CURSE))
+            else modem.Modem(self.settings["modem"]))
 
         self.modem.on_ring_start = self.ring_start
         self.modem.on_ring_end = self.ring_end
-        #self.modem.on_rssi = lambda rssi: log.debug("RSSI: %s", rssi)
 
         self.door = (
-            door.MockDoor(mock)
+            door.MockDoor(mock, self.settings["door"])
             if mocked("door")
-            else door.Door(
-                lock_serial_device=settings.DOOR["LOCK_SERIAL_DEVICE"],
-                switch_pin=settings.DOOR["SWITCH_PIN"]))
+            else door.Door(self.settings["door"]))
         self.door.on_open_change = self.door_open_change
         self.door.on_unlocked_change = self.door_unlocked_change
 
         self.reader = (
             reader.MockReader(mock)
             if mocked("reader")
-            else reader.Reader(settings=settings.READER))
+            else reader.Reader(self.settings["reader"]))
         self.reader.on_tag_read = self.tag_read
         self.reader.on_button_change = self.doorbell_button_change
 
@@ -76,7 +64,7 @@ class Renksu:
         self.say_after_open_text = None
         self.say_after_open_time = 0
 
-        self.mqtt = mqtt.MqttClient(settings.MQTT)
+        self.mqtt = mqtt.MqttClient(self.settings["mqtt"])
         self.mqtt.on_light_on_change = self.light_on_change
 
         self.presence_timer = None
@@ -161,11 +149,14 @@ class Renksu:
 
         audit_log.info("Membership days left: {}".format(days_left))
 
+        presence_timeout = self.settings.getint("presence", "timeout_seconds", fallback=0)
+        grace_period = self.settings.getint("membership", "grace_period_days", fallback=0)
+        remaining_message_days = self.settings.getint("membership", "remaining_message_days", fallback=0)
+
         if days_left < 0:
-            if (settings.MEMBERSHIP_GRACE_PERIOD_DAYS
-                    and -days_left < settings.MEMBERSHIP_GRACE_PERIOD_DAYS):
+            if grace_period and -days_left < grace_period:
                 self.say_after_open("Membership expired. Days of grace period remaining: {}".format(
-                    settings.MEMBERSHIP_GRACE_PERIOD_DAYS + days_left))
+                    grace_period + days_left))
             else:
                 audit_log.info("-> Not an active member!")
                 #asyncio.ensure_future(self.ring_doorbell())
@@ -179,8 +170,7 @@ class Renksu:
 
                 return
         else:
-            if (settings.MEMBERSHIP_REMAINING_MESSAGE_DAYS
-                    and days_left <= settings.MEMBERSHIP_REMAINING_MESSAGE_DAYS):
+            if remaining_message_days and days_left <= remaining_message_days:
                 self.say_after_open("Days remaining: {}".format(days_left))
 
         self.mqtt.publish("ring/unlocked", member.get_public_name())
@@ -188,20 +178,18 @@ class Renksu:
         audit_log.info("Opening door for %s", member.display_name)
 
         last_presence = self.presence_members.get(member.id, 0)
-        if now - last_presence >= settings.PRESENCE["PRESENCE_TIMEOUT_SECONDS"]:
+        if now - last_presence >= presence_timeout:
             self.presence_members[member.id] = now
             self.telegram.message("\U0001F6AA {} avasi oven.".format(member.get_public_name()))
 
-        open_time = settings.DOOR["PHONE_OPEN_TIME_SECONDS"]
-
-        if not self.door.unlock(open_time):
+        if not self.door.unlock():
             return
 
         self.last_unlocked_by = member
 
         self.speaker.play("bleep")
 
-        self.reader.show_unlocked(member, open_time, method)
+        self.reader.show_unlocked(member, self.door.unlocked_until, method)
 
     def ring_end(self):
         log.info("Incoming call ended.")
@@ -227,18 +215,16 @@ class Renksu:
         else:
             audit_log.info("Door closed.")
 
-            if (self.door.is_unlocked
-                    and self.last_opened_at
-                    and now - self.last_opened_at >= settings.DOOR["RELOCK_DEBOUNCE_TIMEOUT_SECONDS"]):
-                audit_log.info("Relocking")
-                self.door.lock()
-
         self.mqtt.publish("door_open", "1" if is_open else "0", True)
 
         self.update_presence()
 
     def door_unlocked_change(self, is_unlocked):
-        if not is_unlocked:
+        if is_unlocked:
+            audit_log.info("Door unlocked.")
+        else:
+            audit_log.info("Door locked.")
+
             self.reader.show_locked()
 
     def light_on_change(self, light_on):
@@ -263,7 +249,11 @@ class Renksu:
                     self.presence_members.clear()
                     self.telegram.message("\U0001F4A4 Labi tyhjillään")
 
-            delay = 0 if self.presence is None or new_presence else settings.PRESENCE["LEAVE_DELAY_SECONDS"]
+            delay = (
+                0
+                if self.presence is None or new_presence
+                else self.settings.getint("presence", "leave_delay_seconds", 0))
+
             self.presence_timer = utils.Timer(set_presence, delay)
 
 if __name__ == "__main__":

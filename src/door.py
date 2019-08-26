@@ -6,8 +6,6 @@ import time
 
 import utils
 
-__all__ = ["Door"]
-
 log = logging.getLogger("door")
 
 class BaseDoor:
@@ -29,14 +27,14 @@ class BaseDoor:
             utils.raise_event(self.on_open_change, is_open)
 
 class Door(BaseDoor):
-    def __init__(self, lock_serial_device, switch_pin):
+    def __init__(self, settings):
         super().__init__()
 
         import RPi.GPIO as gpio
         self.gpio = gpio
 
-        self.lock_serial_device = lock_serial_device
-        self.switch_pin = switch_pin
+        self.lock_serial_port = settings.get("lock_serial_port")
+        self.sensor_gpio_pin = settings.get("sensor_gpio_pin")
 
         self.baud_rate = 9600
         self.port = None
@@ -45,12 +43,14 @@ class Door(BaseDoor):
 
     def start(self):
         self.gpio.setmode(self.gpio.BOARD)
-        self.gpio.setup(self.switch_pin, self.gpio.IN, pull_up_down=self.gpio.PUD_UP)
+        self.gpio.setup(self.sensor_gpio_pin, self.gpio.IN, pull_up_down=self.gpio.PUD_UP)
 
         self._poll()
         utils.Timer(self._poll, 0.5, True)
 
-    def unlock(self, seconds):
+    def unlock(self):
+        seconds = self.settings.getint("unlock_time_seconds", fallback=10)
+
         try:
             if seconds <= 0:
                 log.warning("Invalid unlock timeout: %ss", seconds)
@@ -74,7 +74,7 @@ class Door(BaseDoor):
             self._close_port()
 
             self.port = serial.Serial(
-                port=self.lock_serial_device,
+                port=self.lock_serial_port,
                 baudrate=self.baud_rate,
                 timeout=0,
                 write_timeout=0)
@@ -97,7 +97,7 @@ class Door(BaseDoor):
             log.error("Failed to lock door", exc_info=e)
 
     def _poll(self):
-        self._set_is_open(self.gpio.input(self.switch_pin) == self.gpio.HIGH)
+        self._set_is_open(self.gpio.input(self.sensor_gpio_pin) == self.gpio.HIGH)
 
     def _close_port(self):
         if self.port:
@@ -132,10 +132,11 @@ class Door(BaseDoor):
             self.port = None
 
 class MockDoor(BaseDoor):
-    def __init__(self, mock):
+    def __init__(self, mock, settings):
         super().__init__()
 
         self.mock = mock
+        self.settings = settings
 
         self.unlock_id = 0
 
@@ -145,7 +146,9 @@ class MockDoor(BaseDoor):
     def start(self):
         self.mock.log("Door started")
 
-    def unlock(self, seconds):
+    def unlock(self):
+        seconds = self.settings.getint("unlock_time_seconds", fallback=10)
+
         if seconds <= 0:
             log.warning("Invalid unlock timeout: %ss", seconds)
             return False
@@ -160,6 +163,8 @@ class MockDoor(BaseDoor):
 
         self.unlock_id += 1
         unlock_id = self.unlock_id
+
+        self.unlocked_until = time.time() + seconds
 
         async def unlock_async():
             self.mock.log("Door is unlocked")
@@ -181,27 +186,3 @@ class MockDoor(BaseDoor):
         self.mock.log("Locking door immediately")
         self._set_is_unlocked(False)
         self.is_unlocked = False
-
-if __name__ == "__main__":
-    import logging.config
-    logging.config.fileConfig("logging.ini")
-
-    print("Testing Door")
-
-    import settings
-
-    def open_change(is_open):
-        print("Door is {}.".format( "open" if is_open else "closed"))
-
-        if not is_open:
-            print("Unlocking the door!")
-            door.unlock(5)
-
-    door = Door(
-        lock_serial_device=settings.DOOR_LOCK_SERIAL_DEVICE,
-        switch_pin=settings.DOOR_SWITCH_PIN)
-    door.on_open_change = open_change
-
-    door.start()
-
-    utils.run_event_loop()
