@@ -319,10 +319,16 @@ class Reader(BaseReader):
         if len(response) < 2:
             return
 
-        if response[0:1] == b"b" and len(response) == 3:
-            utils.raise_event(self.on_button_change, response[1:2] == b"\x01")
-        elif response[0:1] == b"r" and len(response) >= 6:
-            uid = binascii.hexlify(response[1:-1]).decode("utf-8")
+        event = response[0:1]
+        payload = response[1:-1].replace(b"\\n", b"\n").replace(b"\\\\", b"\\")
+
+        if event != b"p":
+            print(event, payload)
+
+        if event == b"b" and len(payload) == 1:
+            utils.raise_event(self.on_button_change, payload == b"\x01")
+        elif event == b"r" and len(payload) >= 4:
+            uid = binascii.hexlify(payload).decode("utf-8")
 
             now = time.time()
 
