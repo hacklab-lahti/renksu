@@ -84,6 +84,7 @@ class Renksu:
         if pushed and not self.door.is_unlocked:
             self.reader.show_doorbell()
             self.speaker.play("doorbell")
+            self.mqtt.publish("doorbell", None)
 
     def say_after_open(self, text):
         self.say_after_open_text = text
