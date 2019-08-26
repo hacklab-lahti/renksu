@@ -24,14 +24,14 @@ class MqttClient:
         self.on_light_on_change = None
 
         self.topic_prefix = self.settings.get("topic_prefix")
-        self.light_status_topic = self.settings.get("light_status_topic", None)
-        self.light_status_on = self.settings.get("light_status_on", None)
+        self.light_status_topic = self.settings.get("light_status_topic", fallback=None)
+        self.light_status_on = self.settings.get("light_status_on", fallback=None)
 
     def start(self):
         self.client = mqtt.Client()
         self.client.will_set(self.topic_prefix + "online", "0", 2, True)
         self.client.connect_async(self.settings.get("host"), self.settings.getint("port"), 60)
-        if self.settings.get("username", None):
+        if self.settings.get("username", fallback=None):
             self.client.username_pw_set(
                 self.settings.get("username"),
                 self.settings.get("password"))
@@ -64,10 +64,12 @@ class MqttClient:
 
         log.debug("recv: {} {}".format(msg.topic, msg.payload))
 
-        if self.self.light_status_topic and msg.topic == self.light_status_topic:
+        if self.light_status_topic and msg.topic == self.light_status_topic:
             new_light_on = (msg.payload == self.light_status_on)
 
             if new_light_on != self.light_on:
                 self.light_on = new_light_on
+
+                log.debug("Light status: {}".format(self.light_on))
 
                 utils.raise_event(self.on_light_on_change, new_light_on)

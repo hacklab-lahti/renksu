@@ -265,14 +265,14 @@ class Reader(BaseReader):
             cmd.replace(b"\\", b"\\\\").replace(b"\n", b"\\n") + b"\n")
 
     async def _poll_task(self):
-        if not self.settings.get("serial_port", None):
+        if not self.settings.get("serial_port", fallback=None):
             return
 
         last_error = None
         while True:
             try:
                 reader, writer = await serial_asyncio.open_serial_connection(
-                    url=self.settings.get("serial_port", None),
+                    url=self.settings.get("serial_port", fallback=None),
                     baudrate=115200)
 
                 self._reset()
