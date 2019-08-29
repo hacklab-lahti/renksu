@@ -275,9 +275,12 @@ class Reader(BaseReader):
                     url=self.settings.get("serial_port", fallback=None),
                     baudrate=115200)
 
+                log.debug("reader opened successfully")
+
                 self._reset()
 
                 cur_cmd = None
+                timeouts = 0
 
                 while True:
                     if len(self.queue) == 0:
@@ -295,12 +298,18 @@ class Reader(BaseReader):
                     try:
                         response = await asyncio.wait_for(reader.readline(), 1)
                     except asyncio.TimeoutError as ex:
+                        timeouts += 1
+                        if timeouts >= 5:
+                            raise Exception("Too many timeouts")
+
                         log.warn("READER: Timeout")
                         await asyncio.sleep(0.1)
                         self._reset()
+
                         continue
 
                     cur_cmd = None
+                    timeouts = 0
                     last_error = None
 
                     self._handle_event(response)
