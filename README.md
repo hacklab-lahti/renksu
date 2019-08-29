@@ -13,10 +13,11 @@ login shell over serial, enable serial hardware.
 
 Alternatively remove the console=serial0 entry from /boot/cmdline.txt.
 
-Give the user permissions to the required devices and install required packages (as root):
+Give the user permissions to the required devices and install required packages (as root). The list
+of packages assumes a recent version of Raspbian, adjust accordingly.
 
-    # usermod -G dialout,gpio -a user
-    # apt install python3-venv python3-dev alsa-utils libttspico0 libttspico-utils libttspico-data
+    # usermod -G audio,dialout,gpio -a user
+    # apt install sudo apt install python3-venv python3-dev espeak libasound2-dev libjpeg8-dev libopenjp2-7 libtiff5
 
 Create virtual environment and install pip packages
 

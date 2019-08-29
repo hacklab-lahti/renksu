@@ -38,19 +38,9 @@ class Speaker:
 
     def _say_thread(self, text, delay):
         try:
-            fd, path = tempfile.mkstemp(".wav")
-
-            subprocess.run(
-                ["pico2wave", "--wave=" + path, text],
-                stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                close_fds=True)
-
             time.sleep(delay)
 
-            subprocess.run(
-                ["aplay", path],
-                stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                close_fds=True)
+            subprocess.run("espeak", "-v", "mb-en1", "-s", "120", text)
         except Exception as e:
             log.error("Failed to run TTS", exc_info=e)
         finally:
