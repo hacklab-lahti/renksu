@@ -269,7 +269,17 @@ class Reader(BaseReader):
             return
 
         last_error = None
+        reader = None
+        writer = None
         while True:
+            if writer:
+                try:
+                    writer.close()
+                except Exception as e:
+                    log.error("Failed to close writer", exc_info=e)
+
+                writer = None
+
             try:
                 reader, writer = await serial_asyncio.open_serial_connection(
                     url=self.settings.get("serial_port", fallback=None),
