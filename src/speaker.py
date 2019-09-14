@@ -40,7 +40,7 @@ class Speaker:
         try:
             time.sleep(delay)
 
-            subprocess.run("espeak", "-v", "mb-en1", "-s", "120", text)
+            subprocess.run(["espeak", "-v", "mb-en1", "-s", "120", text])
         except Exception as e:
             log.error("Failed to run TTS", exc_info=e)
         finally:
