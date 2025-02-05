@@ -24,6 +24,10 @@ class Telegram:
             url = ("https://api.telegram.org/bot{}/sendMessage?chat_id={}&text={}&disable_notification={}"
                 .format(self.settings.get("bot_token"), self.settings.get("chat_id"), text, "true"))
 
+            message_thread_id = self.settings.get("message_thread_id", None)
+            if message_thread_id:
+                url += "&message_thread_id={}".format(message_thread_id)
+
             async with aiohttp.ClientSession() as session:
                 async with session.get(url, timeout=10) as resp:
                     log.debug("Telegram message sent, response from server: {}".format(await resp.text()))
